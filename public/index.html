@@ -32,6 +32,39 @@
     header h1 { font-size: 17px; font-weight: 600; }
     header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
     header small { color: var(--muted); margin-left: auto; font-size: 12px; }
+    .bell {
+      width: 34px; height: 34px; padding: 0;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); display: grid; place-items: center;
+      border-radius: 10px; cursor: pointer; flex-shrink: 0;
+    }
+    .bell.on { color: var(--accent); border-color: var(--accent); }
+    .notify-host {
+      position: fixed; right: 16px; bottom: 16px; z-index: 1000;
+      display: flex; flex-direction: column; gap: 10px;
+      width: min(340px, calc(100vw - 32px));
+    }
+    .notify {
+      position: relative; cursor: pointer;
+      background: var(--panel); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 12px; padding: 12px 32px 12px 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+      opacity: 0; transform: translateY(12px);
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .notify.show { opacity: 1; transform: translateY(0); }
+    .notify.warn { border-left-color: #f59e0b; }
+    .notify strong { display: block; font-size: 13.5px; margin-bottom: 4px; }
+    .notify p {
+      font-size: 12.5px; color: var(--muted); line-height: 1.45;
+      max-height: 58px; overflow: hidden;
+    }
+    .notify-close {
+      position: absolute; top: 4px; right: 6px;
+      background: none; border: none; padding: 2px 6px;
+      color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer;
+    }
     #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
     .msg { max-width: 82%; padding: 11px 14px; border-radius: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; font-size: 14.5px; }
     .msg.user { align-self: flex-end; background: var(--accent); color: white; border-bottom-right-radius: 4px; }
@@ -59,6 +92,9 @@
       <span class="dot"></span>
       <h1>MomoLearn AI</h1>
       <small id="chainInfo">loading models…</small>
+      <button class="bell" id="bell" type="button" title="Toggle pop-up notifications" aria-label="Toggle notifications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
     </header>
     <div id="chat"></div>
     <div class="status" id="status"></div>
@@ -68,13 +104,26 @@
     </form>
   </div>
 
+  <script src="/notify.js"></script>
   <script>
     const chat = document.getElementById('chat');
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const send = document.getElementById('send');
     const statusEl = document.getElementById('status');
+    const bell = document.getElementById('bell');
     const history = [];
+
+    function paintBell() {
+      bell.classList.toggle('on', Notify.enabled);
+      bell.title = Notify.enabled ? 'Notifications on — click to mute' : 'Notifications off — click to enable';
+    }
+    paintBell();
+    bell.addEventListener('click', async () => {
+      await Notify.setEnabled(!Notify.enabled);
+      if (Notify.enabled) Notify.push({ title: 'Notifications on', body: 'You will be pinged when a chat stops or needs your answer.' });
+      paintBell();
+    });
 
     fetch('/api/models')
       .then((r) => r.json())
@@ -126,6 +175,11 @@
           const tried = (data.attempts || []).map((a) => a.model).join(', ');
           pending.textContent = data.error || 'Something went wrong.';
           if (tried) statusEl.textContent = `tried: ${tried}`;
+          Notify.push({
+            kind: 'warn',
+            title: 'Chat stopped — needs your answer',
+            body: `${data.error || 'Something went wrong.'} Click to retry.`,
+          });
         } else {
           pending.textContent = data.content;
           const tierClass = data.tier === 'free' ? 'tier-free' : '';
@@ -134,9 +188,18 @@
           pending.appendChild(badge);
           history.push({ role: 'assistant', content: data.content });
           statusEl.textContent = '';
+          Notify.push({
+            title: 'Chat stopped · answer ready',
+            body: `${data.model}: ${data.content.slice(0, 120)}${data.content.length > 120 ? '…' : ''}`,
+          });
         }
       } catch {
         pending.textContent = 'Network error — is the server running?';
+        Notify.push({
+          kind: 'warn',
+          title: 'Chat stopped — connection lost',
+          body: 'Network error. Check that the server is running and try again.',
+        });
       } finally {
         send.disabled = false;
         input.focus();
