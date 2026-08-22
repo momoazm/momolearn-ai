@@ -29,14 +29,22 @@ const PROVIDERS = {
     baseUrl: 'https://api.openai.com/v1',
     key: () => process.env.OPENAI_API_KEY,
   },
+  cerebras: {
+    baseUrl: 'https://api.cerebras.ai/v1',
+    key: () => process.env.CEREBRAS_API_KEY,
+  },
+  mistral: {
+    baseUrl: 'https://api.mistral.ai/v1',
+    key: () => process.env.MISTRAL_API_KEY,
+  },
 };
 
 const FREE_OPENROUTER_MODELS = [
-  'deepseek/deepseek-chat-v3-0324:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'google/gemma-3-27b-it:free',
-  'qwen/qwen3-30b-a3b:free',
-  'mistralai/mistral-small-3.2-24b-instruct:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'z-ai/glm-5.2:free',
+  'thinkingmachines/inkling:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'google/gemma-4-31b-it:free',
 ];
 
 const CHAIN = [
@@ -46,7 +54,9 @@ const CHAIN = [
     model,
     tier: 'free',
   })),
-  { label: 'groq/llama-3.3-70b-versatile', provider: 'groq', model: 'llama-3.3-70b-versatile', tier: 'free' },
+  { label: 'groq/gpt-oss-120b', provider: 'groq', model: 'openai/gpt-oss-120b', tier: 'free' },
+  { label: 'cerebras/gpt-oss-120b', provider: 'cerebras', model: 'gpt-oss-120b', tier: 'free' },
+  { label: 'mistral/mistral-small-latest', provider: 'mistral', model: 'mistral-small-latest', tier: 'free' },
   { label: 'gemini/gemini-2.0-flash', provider: 'gemini', model: 'gemini-2.0-flash', tier: 'free' },
   { label: 'github/gpt-4o-mini', provider: 'github-models', model: 'openai/gpt-4o-mini', tier: 'free' },
   { label: 'openrouter/auto (paid)', provider: 'openrouter', model: 'openrouter/auto', tier: 'paid' },
