@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { classify, fullRoute, ROUTES, CATEGORIES } from './lib/router.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const app = express();
@@ -38,30 +39,6 @@ const PROVIDERS = {
     key: () => process.env.MISTRAL_API_KEY,
   },
 };
-
-const FREE_OPENROUTER_MODELS = [
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'z-ai/glm-5.2:free',
-  'thinkingmachines/inkling:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'google/gemma-4-31b-it:free',
-];
-
-const CHAIN = [
-  ...FREE_OPENROUTER_MODELS.map((model) => ({
-    label: model,
-    provider: 'openrouter',
-    model,
-    tier: 'free',
-  })),
-  { label: 'groq/gpt-oss-120b', provider: 'groq', model: 'openai/gpt-oss-120b', tier: 'free' },
-  { label: 'cerebras/gpt-oss-120b', provider: 'cerebras', model: 'gpt-oss-120b', tier: 'free' },
-  { label: 'mistral/mistral-small-latest', provider: 'mistral', model: 'mistral-small-latest', tier: 'free' },
-  { label: 'gemini/gemini-2.0-flash', provider: 'gemini', model: 'gemini-2.0-flash', tier: 'free' },
-  { label: 'github/gpt-4o-mini', provider: 'github-models', model: 'openai/gpt-4o-mini', tier: 'free' },
-  { label: 'openrouter/auto (paid)', provider: 'openrouter', model: 'openrouter/auto', tier: 'paid' },
-  { label: 'openai/gpt-4o-mini (paid)', provider: 'openai', model: 'gpt-4o-mini', tier: 'paid' },
-];
 
 const COOLDOWN_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 45_000;
@@ -107,10 +84,16 @@ app.post('/api/chat', async (req, res) => {
   const messages = Array.isArray(req.body.messages) ? req.body.messages : null;
   if (!messages) return res.status(400).json({ error: 'messages array required' });
 
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  const promptText =
+    (lastUser?.content || messages.map((m) => m.content || '').join(' ')) ?? '';
+  const { category, scores } = classify(String(promptText));
+  const { chain } = fullRoute(category);
+
   const attempts = [];
   const startedAt = Date.now();
   const budgetMs = Number(process.env.TOTAL_TIMEOUT_MS) || 55_000;
-  for (const entry of CHAIN) {
+  for (const entry of chain) {
     if (!PROVIDERS[entry.provider].key()) continue;
     if (Date.now() - startedAt > budgetMs) break;
     if (isCoolingDown(entry.label)) {
@@ -125,6 +108,8 @@ app.post('/api/chat', async (req, res) => {
         content,
         model: entry.label,
         tier: entry.tier,
+        category,
+        scores,
         attempts,
       });
     } catch (e) {
@@ -136,24 +121,28 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
-  const anyKeyConfigured = CHAIN.some((c) => PROVIDERS[c.provider].key());
+  const anyKeyConfigured = Object.values(PROVIDERS).some((p) => p.key());
   res.status(anyKeyConfigured ? 503 : 500).json({
     error: anyKeyConfigured
       ? 'All models failed or are cooling down. Try again shortly.'
       : 'No API keys configured on the server (.env).',
+    category,
     attempts,
   });
 });
 
 app.get('/api/models', (req, res) => {
-  res.json(
-    CHAIN.map((c) => ({
-      label: c.label,
-      tier: c.tier,
-      configured: Boolean(PROVIDERS[c.provider].key()),
-      cooldown: isCoolingDown(c.label),
-    }))
-  );
+  res.json({
+    routing: 'criteria-based',
+    categories: CATEGORIES.map((cat) => ({
+      id: cat,
+      description: ROUTES[cat].description,
+      models: ROUTES[cat].order.map((label) => ({
+        label,
+        cooldown: isCoolingDown(label),
+      })),
+    })),
+  });
 });
 
 if (!process.env.VERCEL) {

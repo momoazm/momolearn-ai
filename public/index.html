@@ -127,11 +127,11 @@
 
     fetch('/api/models')
       .then((r) => r.json())
-      .then((models) => {
-        const free = models.filter((m) => m.tier === 'free').length;
-        const ready = models.filter((m) => m.configured).length;
+      .then((data) => {
+        const cats = data.categories || [];
+        const total = cats.reduce((n, c) => n + c.models.length, 0);
         document.getElementById('chainInfo').textContent =
-          `${ready} models ready · ${free} free-first`;
+          `smart routing · ${cats.length} categories · ${total} models`;
       })
       .catch(() => {});
 
@@ -184,7 +184,7 @@
           pending.textContent = data.content;
           const tierClass = data.tier === 'free' ? 'tier-free' : '';
           const badge = document.createElement('span');
-          badge.innerHTML = `answered by <span class="${tierClass}">${data.model}</span>`;
+          badge.innerHTML = `answered by <span class="${tierClass}">${data.model}</span> · ${data.category} route`;
           pending.appendChild(badge);
           history.push({ role: 'assistant', content: data.content });
           statusEl.textContent = '';
