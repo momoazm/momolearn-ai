@@ -1,5 +1,5 @@
 import {
-  getState, save, resetProgress, currentStreak, markStreak, bumpAi, AI_LIMITS, onPersist,
+  getState, save, resetProgress, currentStreak, markStreak, bumpAi, AI_LIMITS, onPersist, todayStr,
 } from './store.js';
 import { pullAccountState, schedulePush, lastSyncInfo } from './sync.js';
 import {
@@ -39,6 +39,78 @@ function h(tag, attrs = {}, ...kids) {
 function fmtTime(ms) {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+async function aiPost(path, body) {
+  const s = getState();
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.token || ''}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function aiReviewCard(key, buildStats, title = 'AI performance review') {
+  const wrap = h('div', { class: 'mz-card airev-wrap' });
+  const render = () => {
+    const cached = getState().aiReviews[key];
+    if (cached) {
+      wrap.replaceChildren(
+        h('h3', {}, `✨ ${title}`),
+        h('p', { class: 'airev-summary' }, cached.summary),
+        Array.isArray(cached.strengths) && cached.strengths.length
+          ? h('ul', { class: 'mz-list' }, cached.strengths.map((x) => h('li', {}, `💪 ${x}`)))
+          : null,
+        Array.isArray(cached.focus)
+          ? h('ul', { class: 'mz-list' }, cached.focus.map((f) =>
+              h('li', {}, h('strong', {}, `${f.area}: `), f.action)))
+          : null,
+        cached.nextStep ? h('div', { class: 'mz-note', style: 'margin-top:8px;' }, `Next step: ${cached.nextStep}`) : null,
+        h('p', { class: 'mz-muted', style: 'margin-top:6px;font-style:italic;' }, cached.motivation || ''),
+      );
+      return;
+    }
+    const btn = h('button', {
+      class: 'btn ghost',
+      onclick: async () => {
+        btn.disabled = true;
+        btn.textContent = '✨ Analysing…';
+        try {
+          bumpAi('tutor');
+          const data = await aiPost('/api/mbzuai/coach', { stats: buildStats() });
+          getState().aiReviews[key] = data.review;
+          save();
+          render();
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = 'Retry';
+          wrap.append(h('p', { class: 'mz-error' }, e.message));
+        }
+      },
+    }, `✨ ${title}`);
+    wrap.replaceChildren(h('h3', {}, title), btn);
+  };
+  render();
+  return wrap;
+}
+
+function dashboardStats() {
+  const s = getState();
+  return {
+    readiness: readiness(),
+    target: s.settings.targetScore,
+    attempted: s.totals.attempted,
+    accuracy: s.totals.attempted ? Math.round((s.totals.correct / s.totals.attempted) * 100) + '%' : null,
+    avgSecondsPerQuestion: s.totals.attempted ? Math.round(s.totals.timeMs / s.totals.attempted / 1000) : null,
+    streakDays: currentStreak(),
+    topicMastery: Object.fromEntries(topics.map((t) => [t.name, masteryFor(t.id)])),
+    recentMocks: s.mocks.slice(-3).map((m) => m.pct),
+    dueMistakes: dueMistakeIds().length,
+    daysUntilExam: s.settings.examDate ? Math.max(0, Math.round((new Date(s.settings.examDate) - new Date(todayStr())) / 86400000)) : null,
+  };
 }
 
 async function api(path, opts = {}) {
@@ -242,6 +314,7 @@ function renderDashboard() {
         h('p', { class: 'mz-muted' }, rec.why),
         h('button', { class: 'btn primary', onclick: () => runRecommendation(rec.key) }, 'Go'),
       ),
+      aiReviewCard('dash-' + todayStr(), dashboardStats, 'AI coach analysis'),
       listCard('Strongest topics', strong.map((t) => [t.name, `${t.m}%`])),
       listCard('Weakest topics', weak.map((t) => [t.name, `${t.m}%`])),
       h('div', { class: 'mz-card' },
@@ -787,6 +860,7 @@ function renderFeedback(q, a) {
   function mistakeClassifier(entry) {
     const options = ['conceptual', 'calculation', 'misreading', 'careless', 'time pressure', 'guessed'];
     const def = entry.cls || 'conceptual';
+    const why = h('span', { class: 'mz-muted' });
     const row = h('div', { class: 'cls-row' },
       h('span', { class: 'mz-muted' }, 'I made this mistake because:'),
       options.map((o) => h('button', {
@@ -796,7 +870,37 @@ function renderFeedback(q, a) {
           ev.currentTarget.classList.add('sel');
           setMistakeClass(entry.qId, o);
         },
-      }, o)));
+      }, o)),
+      (() => {
+        const auto = h('button', {
+          class: 'chip-btn ai-auto',
+          onclick: async (ev) => {
+            auto.disabled = true;
+            auto.textContent = '✨ …';
+            try {
+              bumpAi('tutor');
+              const q = bankById[entry.qId] || {};
+              const r = await aiPost('/api/mbzuai/classify-mistake', {
+                q: { q: q.q, topic: q.topic, diff: q.diff, kind: q.kind, choices: q.choices, answer: q.answer, est: q.est, exp: q.exp },
+                chosenDesc: entry.chosen != null
+                  ? (q.kind === 'mcq' ? `chose "${q.choices?.[entry.chosen]}"` : String(entry.chosen))
+                  : 'ran out of time',
+                ms: entry.ms,
+              });
+              row.querySelectorAll('.chip-btn:not(.ai-auto)').forEach((b) => b.classList.toggle('sel', b.textContent === r.cls));
+              setMistakeClass(entry.qId, r.cls);
+              auto.textContent = '✨ ' + r.cls;
+              why.textContent = r.why || '';
+            } catch (e2) {
+              auto.disabled = false;
+              auto.textContent = '✨ Auto';
+              why.textContent = e2.message.slice(0, 60);
+            }
+          },
+        }, '✨ Auto');
+        return auto;
+      })(),
+      why);
     return row;
   }
 }
@@ -912,6 +1016,13 @@ function finalizeDiagnostic() {
       h('div', { class: 'row gap' },
         h('button', { class: 'btn primary', onclick: renderPlan }, 'View my study plan'),
         h('button', { class: 'btn ghost', onclick: renderDashboard }, 'To dashboard')),
+      aiReviewCard('diag-' + s.diagnostic.at, () => ({
+        overall, weakAreas: weak.map((e) => e.name + ' ' + e.pct + '%'),
+        strongAreas: strong.map((e) => e.name + ' ' + e.pct + '%'),
+        difficultyBreakdown: byDiff,
+        lostToTime: timedOut,
+        topicMastery: s.mastery,
+      }), 'AI review of your diagnostic'),
       h('p', { class: 'mz-note' }, 'Your preparation plan updates automatically as you practice and take mocks.'),
     ),
   );
@@ -1015,6 +1126,15 @@ function finalizeMock(auto) {
         h('button', { class: 'btn primary', onclick: renderPlan }, 'Update study plan'),
         h('button', { class: 'btn ghost', onclick: renderMistakes }, 'Open mistake notebook'),
         h('button', { class: 'btn ghost', onclick: renderDashboard }, 'Dashboard')),
+      aiReviewCard('mock-' + s.mocks.at(-1).at, () => ({
+        score: pct + '%', correct, total,
+        avgSecondsPerQuestion: Math.round(avgMs / 1000),
+        lostToTime: lostToTime.length, lostToMistakes: wrong.length,
+        topicScores: Object.fromEntries(Object.entries(byTopicMap).map(([tid, v]) => [topicName(tid), Math.round((v.c / v.t) * 100)])),
+        weakestConcepts: weakestConcepts.map((c) => c.name),
+        targetScore: s.settings.targetScore,
+        topicMastery: s.mastery,
+      }), 'AI review of this attempt'),
     ),
   );
   Notify.push({ title: 'Mock exam graded', body: `${pct}% — report ready.` });
@@ -1276,7 +1396,10 @@ function openTutor(q, presetAsk) {
   const input = h('textarea', { rows: 2, placeholder: 'Ask about this question, or any concept…' });
   const quick = h('div', { class: 'quick' },
     ['Explain this differently.', 'Give me a hint.', 'Show me the fastest method.', 'Give me a similar question.', 'Why did I get this wrong?']
-      .map((t) => h('button', { class: 'chip-btn', onclick: () => sendTutor(t, { input, log }) }, t)));
+      .map((t) => h('button', {
+        class: 'chip-btn',
+        onclick: () => (t === 'Give me a similar question.' && tutorCtxQ ? genSimilar(tutorCtxQ, log) : sendTutor(t, { input, log })),
+      }, t)));
 
   const drawer = h('aside', { class: 'tutor-drawer', id: 'tutorDrawer' },
     h('header', { class: 'row gap between' },
@@ -1297,6 +1420,71 @@ function openTutor(q, presetAsk) {
 
 function appendTutor(log, role, text) {
   log.append(h('div', { class: `tmsg ${role}` }, text));
+  log.scrollTop = log.scrollHeight;
+}
+
+async function genSimilar(q, log) {
+  const pending = h('div', { class: 'tmsg bot' }, '✨ Generating a brand-new similar question…');
+  log.append(pending);
+  log.scrollTop = log.scrollHeight;
+  let nq = null;
+  try {
+    const data = await api('/api/mbzuai/generate', {
+      method: 'POST',
+      body: JSON.stringify({ topic: q.topic, difficulty: String(q.diff), count: 1 }),
+    });
+    nq = data.questions[0] || null;
+  } catch {}
+  pending.remove();
+  if (!nq) {
+    appendTutor(log, 'bot', 'Generation failed right now — here is a curated one instead:');
+    const alt = pickQuestion(bank, 'practice', { topics: [q.topic] });
+    renderMiniQuestion(log, alt);
+    return;
+  }
+  if (!bank.some((x) => x.id === nq.id)) bank.push(nq);
+  bankById[nq.id] = nq;
+  renderMiniQuestion(log, nq);
+}
+
+function renderMiniQuestion(log, q) {
+  const feedback = h('div', {});
+  const body = h('div', { class: 'tmsg bot miniq' },
+    h('div', { class: 'row gap wrap' },
+      h('span', { class: 'chip' }, topicName(q.topic)),
+      h('span', { class: 'chip dim' }, `D${q.diff} · est ${q.est}s`),
+      q.source === 'ai' ? h('span', { class: 'chip ai' }, 'AI-generated') : null),
+    h('div', { class: 'qtext', style: 'margin-top:8px;' }, q.q),
+    q.kind === 'mcq'
+      ? h('div', { class: 'choices', style: 'margin-top:8px;' }, q.choices.map((c, i) =>
+          h('button', {
+            class: 'choice sm',
+            onclick: (ev) => {
+              body.querySelectorAll('.choice').forEach((el) => (el.disabled = true));
+              ev.currentTarget.classList.add('sel');
+              const ok = i === q.answer;
+              log.append(h('div', { class: `tmsg ${ok ? 'user' : 'bot'}` },
+                ok ? '✓ Correct!' : `✗ Not quite — the answer is "${q.choices[q.answer]}".`));
+              if (!ok && q.wrong && q.wrong[String(i)]) log.append(h('div', { class: 'tmsg bot' }, q.wrong[String(i)]));
+              log.append(h('div', { class: 'tmsg bot' }, q.exp.slice(0, 260)));
+              log.scrollTop = log.scrollHeight;
+            },
+          }, h('span', { class: 'key' }, String.fromCharCode(65 + i)), c)))
+      : (() => {
+          const inp = h('input', { type: 'text', inputmode: 'decimal', placeholder: 'Numeric answer', class: 'numin', style: 'margin-top:8px;' });
+          inp.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            const v = parseFloat(inp.value.replace(',', '.'));
+            inp.disabled = true;
+            const ok = !Number.isNaN(v) && Math.abs(v - Number(q.answer)) <= Math.max(1e-9, Math.abs(Number(q.answer)) * 0.001);
+            log.append(h('div', { class: `tmsg ${ok ? 'user' : 'bot'}` },
+              ok ? '✓ Correct!' : `✗ The answer is ${q.answer}.`));
+            log.append(h('div', { class: 'tmsg bot' }, q.exp.slice(0, 260)));
+            log.scrollTop = log.scrollHeight;
+          });
+          return inp;
+        })());
+  log.append(body);
   log.scrollTop = log.scrollHeight;
 }
 

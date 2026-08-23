@@ -272,3 +272,9 @@ canvas { width: 100%; display: block; }
   .tutor-drawer { width: 100vw; }
   .ring-wrap { margin: 0 auto 8px; }
 }
+
+.airev-wrap { border-left: 3px solid var(--ok); }
+.airev-summary { font-size: 13.5px; line-height: 1.6; margin: 4px 0 8px; }
+.choice.sm { padding: 7px 10px; font-size: 12.5px; border-radius: 8px; }
+.chip-btn.ai-auto { color: var(--accent); border-color: var(--accent); }
+.miniq .numin { width: 100%; }

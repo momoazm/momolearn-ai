@@ -26,6 +26,7 @@ function freshState() {
     aiUsage: { date: todayStr(), gen: 0, tutor: 0 },
     genPool: [],
     seenQueue: [],
+    aiReviews: {},
   };
 }
 
