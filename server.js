@@ -3,6 +3,8 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { classify, fullRoute, ROUTES, CATEGORIES } from './lib/router.js';
+import { registerInterviewRoutes } from './lib/interview.js';
+import { registerMbzuaiRoutes } from './lib/mbzuai/routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const app = express();
@@ -45,8 +47,10 @@ const REQUEST_TIMEOUT_MS = 45_000;
 const cooldowns = new Map();
 
 const isCoolingDown = (label) => (cooldowns.get(label) ?? 0) > Date.now();
+const hasKey = (provider) => Boolean(PROVIDERS[provider]?.key());
+const markCooldown = (label) => cooldowns.set(label, Date.now() + COOLDOWN_MS);
 
-async function callModel(entry, messages) {
+async function callModel(entry, messages, options = {}) {
   const provider = PROVIDERS[entry.provider];
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -64,7 +68,11 @@ async function callModel(entry, messages) {
             }
           : {}),
       },
-      body: JSON.stringify({ model: entry.model, messages }),
+      body: JSON.stringify({
+        model: entry.model,
+        messages,
+        ...(options.temperature != null ? { temperature: options.temperature } : {}),
+      }),
     });
     if (!res.ok) {
       const err = new Error(`HTTP ${res.status}`);
@@ -115,7 +123,7 @@ app.post('/api/chat', async (req, res) => {
     } catch (e) {
       const status = e.status ?? (e.name === 'AbortError' ? 408 : 0);
       if (status === 429 || status >= 500 || status === 408 || status === 0) {
-        cooldowns.set(entry.label, Date.now() + COOLDOWN_MS);
+        markCooldown(entry.label);
       }
       attempts.push({ model: entry.label, status: `fail:${status}` });
     }
@@ -143,6 +151,21 @@ app.get('/api/models', (req, res) => {
       })),
     })),
   });
+});
+
+registerInterviewRoutes(app, {
+  callModel,
+  isCoolingDown,
+  markCooldown,
+  hasKey,
+  fullRoute,
+});
+
+registerMbzuaiRoutes(app, {
+  callModel,
+  hasKey,
+  isCoolingDown,
+  markCooldown,
 });
 
 if (!process.env.VERCEL) {
