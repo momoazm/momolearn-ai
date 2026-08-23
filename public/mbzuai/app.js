@@ -103,7 +103,7 @@ async function boot() {
         const st = getState();
         st.token = data.token;
         save();
-        history.replaceState(null, '', location.pathname);
+        window.history.replaceState(null, '', location.pathname);
       } else {
         history.replaceState(null, '', location.pathname);
         renderGate(Object.assign(new Error(data.error || 'Invalid key'), { status: 401 }));
