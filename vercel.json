@@ -3,9 +3,11 @@
   "functions": {
     "api/index.js": { "maxDuration": 60 }
   },
+  "redirects": [
+    { "source": "/", "destination": "/index.html", "permanent": false }
+  ],
   "rewrites": [
-    { "source": "/", "destination": "/index.html" },
     { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/((?!api/|_vercel).*)", "destination": "/404.html" }
+    { "source": "/((?!api/|_vercel|index\\.html).*)", "destination": "/404.html" }
   ]
 }
