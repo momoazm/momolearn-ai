@@ -1,15 +1,3 @@
-import 'dotenv/config';
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { classify, fullRoute, ROUTES, CATEGORIES } from './lib/router.js';
-import { registerMbzuaiRoutes } from './lib/mbzuai/routes.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const app = express();
-app.use(express.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
 const PROVIDERS = {
   openrouter: {
     baseUrl: 'https://openrouter.ai/api/v1',
@@ -42,12 +30,46 @@ const PROVIDERS = {
 };
 
 const COOLDOWN_MS = 60_000;
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 45_000;
 const cooldowns = new Map();
 
-export const isCoolingDown = (label) => (cooldowns.get(label) ?? 0) > Date.now();
 export const hasKey = (provider) => Boolean(PROVIDERS[provider]?.key());
+export const isCoolingDown = (label) => (cooldowns.get(label) ?? 0) > Date.now();
 export const markCooldown = (label) => cooldowns.set(label, Date.now() + COOLDOWN_MS);
+
+const MODEL_POOL = {
+  'groq/gpt-oss-120b': { provider: 'groq', model: 'openai/gpt-oss-120b' },
+  'cerebras/gpt-oss-120b': { provider: 'cerebras', model: 'gpt-oss-120b' },
+  'openrouter/nemotron-3-ultra': { provider: 'openrouter', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  'openrouter/nemotron-3-super': { provider: 'openrouter', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
+  'openrouter/glm-5.2': { provider: 'openrouter', model: 'z-ai/glm-5.2:free' },
+  'openrouter/inkling': { provider: 'openrouter', model: 'thinkingmachines/inkling:free' },
+  'openrouter/gemma-4-31b': { provider: 'openrouter', model: 'google/gemma-4-31b-it:free' },
+  'mistral/mistral-small': { provider: 'mistral', model: 'mistral-small-latest' },
+  'gemini/gemini-2.0-flash': { provider: 'gemini', model: 'gemini-2.0-flash' },
+  'github/gpt-4o-mini': { provider: 'github-models', model: 'openai/gpt-4o-mini' },
+  'openai/gpt-4o-mini (paid)': { provider: 'openai', model: 'gpt-4o-mini' },
+  'openrouter/auto (paid)': { provider: 'openrouter', model: 'openrouter/auto' },
+};
+
+const CHAIN = [
+  'groq/gpt-oss-120b',
+  'cerebras/gpt-oss-120b',
+  'openrouter/inkling',
+  'openrouter/nemotron-3-ultra',
+  'openrouter/nemotron-3-super',
+  'openrouter/glm-5.2',
+  'gemini/gemini-2.0-flash',
+  'mistral/mistral-small',
+  'openrouter/gemma-4-31b',
+  'github/gpt-4o-mini',
+  'openai/gpt-4o-mini (paid)',
+  'openrouter/auto (paid)',
+];
+
+export function chain() {
+  return CHAIN.map((label) => ({ label, ...MODEL_POOL[label], tier: label.includes('paid') ? 'paid' : 'free' }));
+}
 
 export async function callModel(entry, messages, options = {}) {
   const provider = PROVIDERS[entry.provider];
@@ -60,10 +82,10 @@ export async function callModel(entry, messages, options = {}) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${provider.key()}`,
-        ...(entry.provider.startsWith('openrouter')
+        ...(entry.provider === 'openrouter'
           ? {
               'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
-              'X-Title': 'MomoLearn',
+              'X-Title': 'MBZUAI Interview Coach',
             }
           : {}),
       },
@@ -71,7 +93,6 @@ export async function callModel(entry, messages, options = {}) {
         model: entry.model,
         messages,
         ...(options.temperature != null ? { temperature: options.temperature } : {}),
-        ...(options.maxTokens != null ? { max_tokens: options.maxTokens } : {}),
       }),
     });
     if (!res.ok) {
@@ -88,21 +109,12 @@ export async function callModel(entry, messages, options = {}) {
   }
 }
 
-app.post('/api/chat', async (req, res) => {
-  const messages = Array.isArray(req.body.messages) ? req.body.messages : null;
-  if (!messages) return res.status(400).json({ error: 'messages array required' });
-
-  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-  const promptText =
-    (lastUser?.content || messages.map((m) => m.content || '').join(' ')) ?? '';
-  const { category, scores } = classify(String(promptText));
-  const { chain } = fullRoute(category);
-
+export async function runChain(messages, options = {}) {
   const attempts = [];
   const startedAt = Date.now();
   const budgetMs = Number(process.env.TOTAL_TIMEOUT_MS) || 55_000;
-  for (const entry of chain) {
-    if (!PROVIDERS[entry.provider].key()) continue;
+  for (const entry of chain()) {
+    if (!hasKey(entry.provider)) continue;
     if (Date.now() - startedAt > budgetMs) break;
     if (isCoolingDown(entry.label)) {
       attempts.push({ model: entry.label, status: 'cooldown' });
@@ -110,58 +122,17 @@ app.post('/api/chat', async (req, res) => {
     }
     try {
       const started = Date.now();
-      const content = await callModel(entry, messages);
+      const content = await callModel(entry, messages, options);
       attempts.push({ model: entry.label, status: 'ok', ms: Date.now() - started });
-      return res.json({
-        content,
-        model: entry.label,
-        tier: entry.tier,
-        category,
-        scores,
-        attempts,
-      });
+      return { content, model: entry.label, attempts };
     } catch (e) {
       const status = e.status ?? (e.name === 'AbortError' ? 408 : 0);
-      if (status === 429 || status >= 500 || status === 408 || status === 0) {
-        markCooldown(entry.label);
-      }
+      if (status === 429 || status >= 500 || status === 408 || status === 0) markCooldown(entry.label);
       attempts.push({ model: entry.label, status: `fail:${status}` });
     }
   }
-
-  const anyKeyConfigured = Object.values(PROVIDERS).some((p) => p.key());
-  res.status(anyKeyConfigured ? 503 : 500).json({
-    error: anyKeyConfigured
-      ? 'All models failed or are cooling down. Try again shortly.'
-      : 'No API keys configured on the server (.env).',
-    category,
-    attempts,
-  });
-});
-
-app.get('/api/models', (req, res) => {
-  res.json({
-    routing: 'criteria-based',
-    categories: CATEGORIES.map((cat) => ({
-      id: cat,
-      description: ROUTES[cat].description,
-      models: ROUTES[cat].order.map((label) => ({
-        label,
-        cooldown: isCoolingDown(label),
-      })),
-    })),
-  });
-});
-
-registerMbzuaiRoutes(app, {
-  callModel,
-  hasKey,
-  isCoolingDown,
-  markCooldown,
-});
-
-if (!process.env.VERCEL) {
-  app.listen(process.env.PORT || 3000, () => {
-    console.log(`MomoLearn AI running on http://localhost:${process.env.PORT || 3000}`);
-  });
+  const anyKey = Object.values(PROVIDERS).some((p) => p.key());
+  const err = new Error(anyKey ? 'All models failed or are cooling down. Try again shortly.' : 'No AI API keys configured on the server.');
+  err.attempts = attempts;
+  throw err;
 }

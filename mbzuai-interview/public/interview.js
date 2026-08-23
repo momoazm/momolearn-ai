@@ -1,70 +1,55 @@
 (() => {
-  const LS = {
-    key: 'momo.mbzuai.key',
-    profile: 'momo.mbzuai.profile',
-    history: 'momo.mbzuai.history',
-    active: 'momo.mbzuai.active',
-    usage: 'momo.mbzuai.usage',
-    tts: 'momo.mbzuai.tts',
-  };
-  const DAILY_LIMIT_FALLBACK = 15;
-  let dailyLimit = DAILY_LIMIT_FALLBACK;
-
-  const $ = (id) => document.getElementById(id);
-  const views = ['view-gate', 'view-home', 'view-setup', 'view-interview', 'view-report'];
-  const show = (name) => {
-    views.forEach((v) => $(v).classList.toggle('hidden', v !== name));
-    $('appHeader').classList.toggle('hidden', name === 'view-gate' || name === 'view-interview');
-    window.scrollTo(0, 0);
-  };
-
-  const store = {
-    get(k, fallback) {
-      try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); }
-      catch { return fallback; }
-    },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-    del(k) { try { localStorage.removeItem(k); } catch {} },
-  };
-
+  const LS = { token: 'mi.token', active: 'mi.active', tts: 'mi.tts' };
   const TYPES = {
     general: { label: 'General Interview', blurb: 'Balanced academic and personal questions.' },
     motivation: { label: 'Motivation Interview', blurb: 'Why AI? Why MBZUAI? Academic and career goals.' },
     technical: { label: 'Technical Interview', blurb: 'Math, probability, programming, algorithms, ML fundamentals.' },
     research: { label: 'Research Interview', blurb: 'Research interests, experience and scientific reasoning.' },
     behavioral: { label: 'Behavioral Interview', blurb: 'Leadership, teamwork, failure, conflict, adaptability.' },
-    stress: { label: 'Stress Interview', blurb: 'Harder follow-ups and pressure. Stay composed.' },
+    stress: { label: 'Stress Interview', blurb: 'Harder follow-ups and pressure. Stay composed.', tag: 'Advanced' },
     full: { label: 'Full Mock Interview', blurb: 'A complete realistic simulation of all categories.', tag: 'Most realistic' },
   };
 
+  const $ = (id) => document.getElementById(id);
+  const views = ['view-home', 'view-setup', 'view-interview', 'view-report'];
+  const show = (name) => {
+    views.forEach((v) => $(v).classList.toggle('hidden', v !== name));
+    $('appHeader').classList.toggle('hidden', name === 'view-interview');
+    window.scrollTo(0, 0);
+  };
+
+  const store = {
+    get(k, f) { try { const v = localStorage.getItem(k); return v == null ? f : JSON.parse(v); } catch { return f; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
+  };
+
   const FILLERS = /\b(um+|uh+|er+|ah+|like|you know|i mean|basically|actually|literally|sort of|kind of)\b/gi;
-  let dailyCount = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const u = store.get(LS.usage, null);
-    return u && u.date === today ? u.count : 0;
-  };
-  const bumpDaily = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    store.set(LS.usage, { date: today, count: dailyCount() + 1 });
-  };
-
-  async function api(path, body) {
-    const res = await fetch(`/api/interview/${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-interview-key': localStorage.getItem(LS.key) || '' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      if (res.status === 401) { store.del(LS.key); showGate(); }
-      throw new Error(data.error || `Request failed (${res.status})`);
-    }
-    return data;
-  }
-
-  const getProfile = () => store.get(LS.profile, null);
   const fmtDate = (ts) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const fmtClock = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const catLabel = (k) => (k || '').replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()).trim();
+
+  let profile = null;
+  let history = [];
+  let usage = { used: 0, limit: 15 };
+  let session = null;
+  let busy = false;
+  let lastReportTranscript = [];
+  let currentReportType = null;
+  let pendingType = null;
+
+  async function api(path, body, method) {
+    const res = await fetch(`/api/${path}`, {
+      method: method || (body ? 'POST' : 'GET'),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem(LS.token) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) { location.href = '/'; throw new Error('Signed out'); }
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  }
 
   /* ---------- voice ---------- */
   let recog = null, recognizing = false, answerStartTs = 0, clockTimer = null, totalTimer = null;
@@ -91,10 +76,10 @@
     recog.onend = () => { recognizing = false; paintMic(); };
     recog.onerror = () => { recognizing = false; paintMic(); };
   }
-  function paintMic() {
+  const paintMic = () => {
     $('micBtn').classList.toggle('rec', recognizing);
     $('micBtn').title = recognizing ? 'Stop dictation' : 'Dictate answer (voice input)';
-  }
+  };
   function toggleMic() {
     if (!recog) return;
     if (recognizing) { recog.stop(); return; }
@@ -102,7 +87,6 @@
       recog.start();
       recognizing = true;
       paintMic();
-      Notify.push({ title: 'Voice mode on', body: 'Speak your answer — live transcription is on.' });
     } catch {}
   }
   function voiceMetrics(text) {
@@ -118,47 +102,22 @@
   }
 
   const ttsOn = () => store.get(LS.tts, false);
-  function paintTts() { $('ttsToggle').classList.toggle('on', ttsOn()); }
+  const paintTts = () => $('ttsToggle').classList.toggle('on', ttsOn());
   function speak(text) {
     if (!ttsOn() || !('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 1.02;
-      u.pitch = 1;
       speechSynthesis.speak(u);
     } catch {}
   }
 
-  /* ---------- gate ---------- */
-  async function tryUnlock(code, btn) {
-    btn.disabled = true;
-    $('gateErr').textContent = '';
-    try {
-      const res = await fetch('/api/interview/auth', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        localStorage.setItem(LS.key, code);
-        if (data.limits?.dailyInterviews) dailyLimit = data.limits.dailyInterviews;
-        showHome();
-      } else {
-        $('gateErr').textContent = data.error || 'Invalid code.';
-      }
-    } catch {
-      $('gateErr').textContent = 'Network error.';
-    } finally { btn.disabled = false; }
-  }
-  function showGate() { show('view-gate'); setTimeout(() => $('gateCode').focus(), 50); }
-
   /* ---------- home ---------- */
   function renderProfileCard() {
-    const p = getProfile();
-    if (p && (p.degree || p.academicBackground || p.researchInterests)) {
-      $('profName').textContent = [p.degree, p.researchInterests].filter(Boolean).join(' · ') || 'Candidate profile';
-      $('profSub').textContent = 'Profile saved — the interviewer will personalize questions from it.';
+    if (profile && (profile.degree || profile.academicBackground || profile.researchInterests)) {
+      $('profName').textContent = [profile.degree, profile.researchInterests].filter(Boolean).join(' · ') || 'Candidate profile';
+      $('profSub').textContent = 'Profile saved to your account — interviews are personalized from it.';
     } else {
       $('profName').textContent = 'No candidate profile yet';
       $('profSub').textContent = 'Set up your background so the interviewer can personalize questions.';
@@ -168,32 +127,32 @@
   function renderTypes() {
     const grid = $('typeGrid');
     grid.innerHTML = '';
+    const left = Math.max(0, usage.limit - usage.used);
     Object.entries(TYPES).forEach(([id, t]) => {
       const b = document.createElement('button');
       b.className = 'type-card';
-      const left = Math.max(0, dailyLimit - dailyCount());
       b.innerHTML = `<div class="t-name">${t.label}</div><div class="t-blurb">${t.blurb}</div>
-        <div class="t-meta">${t.tag ? t.tag + ' · ' : ''}${t.label === 'Stress Interview' ? 'Advanced' : ''}${left <= 3 ? ` · ${left} sessions left today` : ''}</div>`;
+        <div class="t-meta">${t.tag ? t.tag + ' · ' : ''}${left <= 3 ? `${left} sessions left today` : ''}</div>`;
       b.addEventListener('click', () => startInterview(id));
       grid.appendChild(b);
     });
+    $('usageNote').textContent = left <= 3 ? `(${left} of ${usage.limit} daily sessions left)` : '';
   }
 
   function renderHistory() {
-    const hist = store.get(LS.history, []);
-    $('historyHint').textContent = hist.length
-      ? `${hist.length} completed interview${hist.length > 1 ? 's' : ''}`
+    $('historyHint').textContent = history.length
+      ? `${history.length} completed interview${history.length > 1 ? 's' : ''} · stored in your account`
       : 'Completed interviews will appear here with scores and progress over time.';
     const list = $('historyList');
     list.innerHTML = '';
 
-    if (hist.length >= 2) {
-      const pts = [...hist].reverse();
+    if (history.length >= 2) {
+      const pts = [...history].reverse();
       const W = 640, H = 120, pad = 26;
       const xs = (i) => pad + (i * (W - pad * 2)) / Math.max(pts.length - 1, 1);
       const ys = (v) => H - pad - ((v / 100) * (H - pad * 2));
       const line = pts.map((h, i) => `${i ? 'L' : 'M'}${xs(i).toFixed(1)},${ys(h.overall).toFixed(1)}`).join(' ');
-      const dots = pts.map((h, i) => `<circle cx="${xs(i).toFixed(1)}" cy="${ys(h.overall).toFixed(1)}" r="3.5" fill="${h.overall >= 70 ? '#34d399' : '#7c6cff'}"><title>${fmtDate(h.date)} · ${h.typeLabel}: ${h.overall}</title></circle>`).join('');
+      const dots = pts.map((h, i) => `<circle cx="${xs(i).toFixed(1)}" cy="${ys(h.overall).toFixed(1)}" r="3.5" fill="${h.overall >= 70 ? '#34d399' : '#7c6cff'}"><title>${fmtDate(h.created_at)} · ${TYPES[h.type]?.label || h.type}: ${h.overall}</title></circle>`).join('');
       $('chartWrap').innerHTML = `<svg viewBox="0 0 ${W} ${H}">
         <line x1="${pad}" y1="${ys(50)}" x2="${W - pad}" y2="${ys(50)}" stroke="#232838" stroke-dasharray="4 4"/>
         <line x1="${pad}" y1="${ys(75)}" x2="${W - pad}" y2="${ys(75)}" stroke="#232838" stroke-dasharray="4 4"/>
@@ -204,21 +163,33 @@
       $('chartWrap').innerHTML = '';
     }
 
-    hist.slice().reverse().forEach((h) => {
+    history.forEach((h) => {
       const row = document.createElement('div');
       row.className = 'hist-row';
-      const strong = h.strongestCat || '', weak = h.weakestCat || '';
-      row.innerHTML = `<span class="d">${fmtDate(h.date)}</span>
-        <span class="t"><strong>${h.typeLabel}</strong><br><span style="color:var(--muted);font-size:11.5px;">${strong ? `strong: ${strong}` : ''}${strong && weak ? ' · ' : ''}${weak ? `weak: ${weak}` : ''}${h.durationMin ? ` · ${h.durationMin} min` : ''}</span></span>
+      const cats = Object.entries(h.report?.categories || {}).map(([k, v]) => [k, Number(v) || 0]).sort((a, b) => b[1] - a[1]);
+      const strong = cats[0] ? catLabel(cats[0][0]) : '';
+      const weak = cats.length > 1 ? catLabel(cats[cats.length - 1][0]) : '';
+      row.innerHTML = `<span class="d">${fmtDate(h.created_at)}</span>
+        <span class="t"><strong>${TYPES[h.type]?.label || h.type}</strong><br><span style="color:var(--muted);font-size:11.5px;">${strong ? `strong: ${strong}` : ''}${strong && weak ? ' · ' : ''}${weak ? `weak: ${weak}` : ''}${h.duration_sec ? ` · ${Math.max(1, Math.round(h.duration_sec / 60))} min` : ''}</span></span>
         <span class="hist-score" style="color:${h.overall >= 75 ? 'var(--ok)' : h.overall >= 55 ? 'var(--warn)' : 'var(--bad)'}">${h.overall}</span>`;
-      row.title = h.summary || '';
-      row.addEventListener('click', () => {
-        lastReportTranscript = h.transcript || [];
-        currentReportType = h.type;
-        renderReport(h.report, true);
+      row.title = h.report?.summary || '';
+      row.addEventListener('click', async () => {
+        try {
+          const data = await api(`interviews?id=${h.id}`);
+          lastReportTranscript = data.interview.transcript || [];
+          currentReportType = h.type;
+          renderReport(h.report, true);
+        } catch (e) {
+          NotifySafe(e.message);
+        }
       });
       list.appendChild(row);
     });
+  }
+
+  function NotifySafe(msg) {
+    if (window.Notify) Notify.push({ kind: 'warn', title: 'Error', body: msg });
+    else alert(msg);
   }
 
   function renderResumeCard() {
@@ -227,7 +198,7 @@
     if (a) $('resumeInfo').textContent = `${TYPES[a.type]?.label || a.type} · question ${a.state?.qCount || 1}`;
   }
 
-  function showHome() {
+  async function showHome() {
     renderProfileCard(); renderTypes(); renderHistory(); renderResumeCard(); paintTts();
     show('view-home');
   }
@@ -235,34 +206,39 @@
   /* ---------- profile ---------- */
   const PF_FIELDS = ['degree','academicBackground','programming','aiMlExperience','projects','research','internships','competitions','publications','researchInterests','careerGoals'];
   function openProfile() {
-    const p = getProfile() || {};
-    PF_FIELDS.forEach((f) => { $(`pf_${f}`).value = p[f] || ''; });
+    PF_FIELDS.forEach((f) => { $(`pf_${f}`).value = profile?.[f] || ''; });
     show('view-setup');
   }
-  function saveProfile() {
+  async function saveProfile() {
     const p = {};
     PF_FIELDS.forEach((f) => { const v = $(`pf_${f}`).value.trim(); if (v) p[f] = v; });
-    store.set(LS.profile, p);
-    Notify.push({ title: 'Profile saved', body: 'Your interviews will now be personalized.' });
-    showHome();
+    try {
+      await api('profile', { data: p }, 'PUT');
+      profile = p;
+      if (window.Notify) Notify.push({ title: 'Profile saved', body: 'Stored in your account.' });
+      showHome();
+      if (pendingType) { const t = pendingType; pendingType = null; startInterview(t); }
+    } catch (e) {
+      NotifySafe(e.message);
+    }
   }
 
   /* ---------- interview flow ---------- */
   async function startInterview(type, focus, targetQuestions) {
-    if (!getProfile()) {
-      Notify.push({ kind: 'warn', title: 'Profile needed first', body: 'Tell the simulator about your background once, then interview anytime.' });
+    if (!profile) {
+      if (window.Notify) Notify.push({ kind: 'warn', title: 'Profile needed first', body: 'Tell the coach about your background once, then interview anytime.' });
       pendingType = type; openProfile(); return;
     }
-    if (dailyCount() >= dailyLimit) {
-      Notify.push({ kind: 'warn', title: 'Daily limit reached', body: `You have used all ${dailyLimit} interviews for today. This cap keeps AI costs sane.` });
+    if (usage.used >= usage.limit) {
+      NotifySafe(`Daily limit reached (${usage.limit} interviews per day).`);
       return;
     }
     const st = $('homeStatus');
     st.textContent = 'Preparing your interviewer…';
-    setBusy(true);
+    document.querySelectorAll('#typeGrid .type-card').forEach((b) => (b.disabled = true));
     try {
-      const data = await api('start', { type, focus, targetQuestions, profile: getProfile() });
-      bumpDaily();
+      const data = await api('interview/start', { type, focus, targetQuestions, profile });
+      usage.used++;
       session = {
         interviewId: data.interviewId,
         type,
@@ -272,23 +248,18 @@
         state: data.state,
         transcript: [],
         startedAt: Date.now(),
+        elapsedBefore: 0,
       };
-      persistSession();
+      store.set(LS.active, session);
       enterInterviewView();
     } catch (e) {
       st.textContent = e.message;
-      Notify.push({ kind: 'warn', title: 'Could not start interview', body: e.message });
+      NotifySafe(e.message);
     } finally {
-      st.textContent = ''; setBusy(false);
+      st.textContent = '';
+      document.querySelectorAll('#typeGrid .type-card').forEach((b) => (b.disabled = false));
     }
   }
-  let pendingType = null;
-
-  function setBusy(on) {
-    document.querySelectorAll('#typeGrid .type-card').forEach((b) => (b.disabled = on));
-  }
-
-  function persistSession() { session ? store.set(LS.active, session) : store.del(LS.active); }
 
   function enterInterviewView(resumed) {
     show('view-interview');
@@ -297,7 +268,14 @@
     $('answerInput').value = '';
     updateVoiceMeta();
     paintQuestion(session.currentQuestion);
-    startTimers(resumed);
+    session.turnStartedAt = Date.now();
+    clearInterval(totalTimer);
+    totalTimer = setInterval(() => {
+      const total = (session.elapsedBefore || 0) + (Date.now() - session.turnStartedAt) / 1000;
+      session.totalElapsed = total;
+      $('ivClock').textContent = fmtClock(total);
+    }, 1000);
+    tickAnswerClock();
   }
 
   function paintQuestion(q) {
@@ -310,18 +288,6 @@
     tickAnswerClock();
   }
 
-  function startTimers(resumed) {
-    clearInterval(clockTimer); clearInterval(totalTimer);
-    if (!resumed) session.elapsedBefore = 0;
-    session.elapsedBefore = session.elapsedBefore || 0;
-    session.turnStartedAt = Date.now();
-    totalTimer = setInterval(() => {
-      const total = session.elapsedBefore + (Date.now() - session.turnStartedAt) / 1000;
-      session.totalElapsed = total;
-      $('ivClock').textContent = fmtClock(total);
-    }, 1000);
-    tickAnswerClock();
-  }
   function tickAnswerClock() {
     clearInterval(clockTimer);
     clockTimer = setInterval(() => {
@@ -334,7 +300,7 @@
     const text = $('answerInput').value.trim();
     if (!text || busy) return;
     if (text.split(/\s+/).length < 3) {
-      Notify.push({ title: 'Answer too short', body: 'Give the interviewer something to work with — a few sentences at least.' });
+      NotifySafe('Give the interviewer something to work with — a few sentences at least.');
       return;
     }
     busy = true;
@@ -348,14 +314,14 @@
 
     const q = session.currentQuestion;
     try {
-      const data = await api('answer', {
+      const data = await api('interview/answer', {
         type: session.type,
         question: q,
         answer: text,
         meta,
         state: session.state,
         history: session.transcript.slice(-4),
-        profile: getProfile(),
+        profile,
       });
       session.transcript.push({ question: q, answer: text, analysis: data.analysis, meta, category: session.category });
       session.state = data.state;
@@ -363,18 +329,13 @@
         finishAndReport();
       } else {
         session.currentQuestion = data.nextQuestion;
-        session.category = data.analysis.decision.kind === 'followup' ? session.category : session.category;
-        persistSession();
+        store.set(LS.active, session);
         $('answerInput').value = '';
         updateVoiceMeta();
         paintQuestion(data.nextQuestion);
-        Notify.push({
-          title: data.analysis.decision.kind === 'followup' ? 'Follow-up incoming' : 'Next question',
-          body: String(data.nextQuestion).slice(0, 110),
-        });
       }
     } catch (e) {
-      Notify.push({ kind: 'warn', title: 'Answer not delivered', body: `${e.message} Your answer is kept in the box — try again.` });
+      NotifySafe(`${e.message} Your answer is kept in the box — try again.`);
       session.elapsedBefore = Math.max(0, (session.elapsedBefore || 0) - elapsedThisTurn);
     } finally {
       busy = false;
@@ -382,7 +343,6 @@
       $('submitAnswerBtn').textContent = 'Submit';
     }
   }
-  let session = null, busy = false;
 
   async function endEarly() {
     if (busy) return;
@@ -401,49 +361,31 @@
       type: session.type,
       transcript: session.transcript,
       state: session.state,
-      profile: getProfile(),
+      profile,
       durationSec: session.totalElapsed || session.elapsedBefore || 0,
     };
     try {
-      const data = await api('report', payload);
-      saveToHistory(payload, data.report);
+      const data = await api('interview/report', payload);
       store.del(LS.active);
       lastReportTranscript = payload.transcript;
       currentReportType = payload.type;
       renderReport(data.report);
-      Notify.push({ title: 'Interview complete', body: `Overall score: ${data.report.overall}/100` });
+      const list = await api('interviews');
+      history = list.interviews || [];
+      NotifySafeDone(`Interview complete — overall score: ${data.report.overall}/100`);
     } catch (e) {
-      Notify.push({ kind: 'warn', title: 'Report failed', body: e.message });
+      NotifySafe(e.message);
       showHome();
     } finally { busy = false; }
   }
-
-  function catLabel(k) {
-    return (k || '').replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()).trim();
-  }
-  function saveToHistory(payload, report) {
-    const cats = Object.entries(report.categories || {}).map(([k, v]) => [k, Number(v) || 0]);
-    cats.sort((a, b) => b[1] - a[1]);
-    const hist = store.get(LS.history, []);
-    hist.push({
-      date: Date.now(),
-      type: payload.type,
-      typeLabel: TYPES[payload.type]?.label || payload.type,
-      overall: report.overall,
-      summary: report.summary,
-      strongestCat: cats[0] ? catLabel(cats[0][0]) : '',
-      weakestCat: cats.length > 1 ? catLabel(cats[cats.length - 1][0]) : '',
-      durationMin: Math.max(1, Math.round((payload.durationSec || 0) / 60)),
-      transcript: payload.transcript,
-      report,
-    });
-    store.set(LS.history, hist.slice(-40));
+  function NotifySafeDone(msg) {
+    if (window.Notify) Notify.push({ title: 'Interview complete', body: msg });
   }
 
   /* ---------- report ---------- */
-  function barClass(v) { return v >= 75 ? 'good' : v >= 50 ? 'mid' : 'low'; }
+  const barClass = (v) => (v >= 75 ? 'good' : v >= 50 ? 'mid' : 'low');
 
-  function renderReport(r, fromHistory) {
+  function renderReport(r) {
     r.__transcript = lastReportTranscript;
     r.__type = currentReportType;
     const C = 2 * Math.PI * 46;
@@ -491,6 +433,7 @@
       </div>
 
       ${(r.voiceNotes ? `<div class="card"><h2>Voice & delivery</h2><p class="hint" style="margin-top:6px;">${escapeHtml(r.voiceNotes)}</p></div>` : '')}
+
       <div class="card section-gap">
         <h2>Strongest answers</h2>${(r.strongestAnswers || []).map((s) => qaBlock(s.index, s.whatWorked, 'good')).join('') || '<p class="hint">—</p>'}
       </div>
@@ -515,8 +458,7 @@
     `;
     show('view-report');
 
-    $('view-report').addEventListener('click', onReportClick);
-    function onReportClick(e) {
+    $('view-report').addEventListener('click', function onReportClick(e) {
       const more = e.target.closest('.qa-more');
       if (more) {
         more.parentElement.classList.toggle('open');
@@ -531,7 +473,7 @@
         return;
       }
       if (e.target.id === 'backHomeBtn') showHome();
-    }
+    });
   }
 
   function weakestType(r) {
@@ -542,9 +484,6 @@
     if (/motiv/i.test(k)) return 'motivation';
     if (/communicat|confiden/i.test(k)) return 'behavioral';
     return 'general';
-  }
-  function escapeHtml(s) {
-    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   async function openCoach(idx) {
@@ -561,11 +500,7 @@
     back.querySelector('#coachClose').addEventListener('click', close);
 
     try {
-      const data = await api('coach', {
-        question: source.question,
-        answer: source.answer,
-        profile: getProfile(),
-      });
+      const data = await api('interview/coach', { question: source.question, answer: source.answer, profile });
       const c = data.coaching;
       const lis = (arr) => (Array.isArray(arr) && arr.length ? `<ul>${arr.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '<p class="hint">—</p>');
       back.querySelector('#coachBody').outerHTML = `
@@ -579,16 +514,12 @@
       back.querySelector('#coachBody').textContent = e.message;
     }
   }
-  let lastReportTranscript = [];
-  let currentReportType = null;
-  $('gateBtn').addEventListener('click', () => tryUnlock($('gateCode').value.trim(), $('gateBtn')));
-  $('gateCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock($('gateCode').value.trim(), $('gateBtn')); });
 
+  /* ---------- wiring ---------- */
   $('profileBtn').addEventListener('click', openProfile);
   $('editProfileBtn').addEventListener('click', openProfile);
-  $('saveProfileBtn').addEventListener('click', () => { saveProfile(); if (pendingType) { const t = pendingType; pendingType = null; startInterview(t); } });
+  $('saveProfileBtn').addEventListener('click', saveProfile);
   $('cancelProfileBtn').addEventListener('click', () => { pendingType = null; showHome(); });
-
   $('micBtn').addEventListener('click', toggleMic);
   $('submitAnswerBtn').addEventListener('click', submitAnswer);
   $('endEarlyBtn').addEventListener('click', endEarly);
@@ -598,38 +529,41 @@
     if (!ttsOn()) try { speechSynthesis.cancel(); } catch {}
     paintTts();
   });
-
   $('resumeBtn').addEventListener('click', () => {
     const a = store.get(LS.active, null);
     if (!a) return;
     session = a;
-    lastReportTranscript = a.transcript || [];
     enterInterviewView(true);
   });
   $('discardBtn').addEventListener('click', () => {
     if (!confirm('Discard the unfinished interview?')) return;
     store.del(LS.active); renderResumeCard();
   });
+  $('logoutBtn').addEventListener('click', async () => {
+    try { await api('auth/logout', {}); } catch {}
+    localStorage.removeItem(LS.token);
+    location.href = '/';
+  });
 
   initMic();
 
-  // boot
   (async function boot() {
-    const savedKey = localStorage.getItem(LS.key);
-    if (savedKey) {
-      try {
-        const res = await fetch('/api/interview/auth', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: savedKey }),
-        });
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          if (data.limits?.dailyInterviews) dailyLimit = data.limits.dailyInterviews;
-          showHome(); return;
-        }
-      } catch {}
-      localStorage.removeItem(LS.key);
+    const token = localStorage.getItem(LS.token);
+    if (!token) { location.href = '/'; return; }
+    try {
+      const me = await api('auth/me');
+      if (me.role !== 'owner') { location.href = '/'; return; }
+      $('whoami').textContent = me.username;
+      const cfg = await api('config').catch(() => ({ dailyLimit: 15 }));
+      usage.limit = cfg.dailyLimit || 15;
+      const prof = await api('profile');
+      profile = prof.profile;
+      const list = await api('interviews');
+      history = list.interviews || [];
+      usage.used = history.filter((h) => Date.now() - new Date(h.created_at).getTime() < 24 * 3600 * 1000).length;
+      showHome();
+    } catch (e) {
+      if (e.message !== 'Signed out') NotifySafe(e.message);
     }
-    showGate();
   })();
 })();

@@ -1,3 +1,7 @@
+import { db, dbConfigured } from './db.js';
+import { accountForToken, tokenFrom } from './accounts.js';
+import { runChain } from './ai.js';
+
 export const INTERVIEW_TYPES = {
   general: {
     label: 'General Interview',
@@ -97,8 +101,7 @@ function recentTurns(turns = [], n = 3) {
 
 const EVAL_DIMS = ['relevance', 'accuracy', 'depth', 'specificity', 'structure', 'communication', 'confidence', 'criticalThinking', 'authenticity', 'technicalUnderstanding'];
 
-function turnSchema() {
-  return `Respond with ONLY a valid JSON object (no markdown fences, no commentary):
+const TURN_SCHEMA = `Respond with ONLY a valid JSON object (no markdown fences, no commentary):
 {
   "digest": "one short paragraph updating your running summary of this interview so far",
   "newClaims": [{"topic": "short topic tag e.g. project-x|ml-experience|career-goal", "text": "exact notable claim the candidate just made"}],
@@ -111,9 +114,9 @@ function turnSchema() {
   "finish": false
 }
 Decision policy: choose "followup" when the answer was vague, contains an interesting/unsupported claim worth probing, contains a possible contradiction, has a technical gap, or when a deeper probe trains the candidate better. Choose "advance" when the point is exhausted or you have enough on this topic. Set "finish": true only when the target number of questions is reached AND the current thread is complete.`;
-}
 
-function buildTurnMessages({ type, config, profile, state, history, question, answer, meta, focus }) {
+function buildTurnMessages({ config, profile, state, history, question, answer, meta, focus }) {
+  const hasVoiceMeta = meta && typeof meta.durationSec === 'number' && typeof meta.words === 'number';
   const system = [
     CORE_PERSONA,
     `\nINTERVIEW TYPE: ${config.label}\n${config.focus}`,
@@ -121,8 +124,8 @@ function buildTurnMessages({ type, config, profile, state, history, question, an
     config.pressure ? '\nThis is a STRESS-mode interview: apply noticeably more pressure through skeptical probing while remaining professional.' : '',
     `\nCANDIDATE PROFILE:\n${profileBlock(profile)}`,
     `\nINTERVIEW STATE:\n${stateBlock(state)}`,
-    meta && hasVoiceMeta(meta) ? `\nDELIVERY METRICS for the latest answer (from optional voice mode): spoke ~${meta.words} words in ${Math.round(meta.durationSec)}s (${meta.wpm} wpm), filler words detected: ${meta.fillers}. Consider communication quality factually; do NOT draw psychological conclusions beyond delivery habits.` : '',
-    `\n${turnSchema()}`,
+    hasVoiceMeta ? `\nDELIVERY METRICS for the latest answer (from optional voice mode): spoke ~${meta.words} words in ${Math.round(meta.durationSec)}s (${meta.wpm} wpm), filler words detected: ${meta.fillers}. Consider communication quality factually; do NOT draw psychological conclusions beyond delivery habits.` : '',
+    `\n${TURN_SCHEMA}`,
   ].filter(Boolean).join('\n');
 
   const user = [
@@ -135,10 +138,6 @@ function buildTurnMessages({ type, config, profile, state, history, question, an
     { role: 'system', content: system },
     { role: 'user', content: user },
   ];
-}
-
-function hasVoiceMeta(meta) {
-  return meta && typeof meta.durationSec === 'number' && typeof meta.words === 'number';
 }
 
 function extractJSON(text) {
@@ -176,86 +175,109 @@ function extractJSON(text) {
   }
 }
 
-async function callStructured(deps, category, messages, temperature = 0.4) {
-  const { chain } = deps.fullRoute(category);
-  const errors = [];
-  for (const entry of chain) {
-    if (!deps.hasKey(entry.provider)) continue;
-    if (deps.isCoolingDown(entry.label)) continue;
-    try {
-      const raw = await deps.callModel(entry, messages, { temperature });
-      return { data: extractJSON(raw), model: entry.label };
-    } catch (e) {
-      errors.push(`${entry.label}: ${e.message}`);
-      const status = e.status ?? (e.name === 'AbortError' ? 408 : 0);
-      if (status === 429 || status >= 500 || status === 408 || status === 0) deps.markCooldown(entry.label);
-    }
-  }
-  const err = new Error(`All models failed for interview step. ${errors.slice(0, 3).join(' | ')}`);
-  err.attempts = errors;
-  throw err;
+async function callStructured(messages, temperature = 0.4) {
+  const { content, model } = await runChain(messages, { temperature });
+  return { data: extractJSON(content), model };
 }
 
-export function registerInterviewRoutes(app, deps) {
-  const accessCode = () => process.env.MBZUAI_ACCESS_CODE;
-  const devFallback = () => (!process.env.VERCEL && !process.env.NODE_ENV?.includes('prod') ? 'mbzuai-local' : null);
+const clamp10 = (n) => {
+  const v = Number(n);
+  return Number.isFinite(v) ? Math.max(0, Math.min(10, Math.round(v * 10) / 10)) : null;
+};
+const pct = (n) => (Number.isFinite(Number(n)) ? Math.max(0, Math.min(100, Math.round(Number(n)))) : 0);
 
-  const authAttempts = new Map();
-  const AUTH_MAX_FAILS = 5;
-  const AUTH_LOCK_MS = 60_000;
+function updateCategories(cats, category, score) {
+  const c = { ...(cats || {}) };
+  const cat = category || 'general';
+  if (typeof score !== 'number' || Number.isNaN(score)) return c;
+  if (!c[cat]) c[cat] = { sum: 0, n: 0 };
+  c[cat] = { sum: c[cat].sum + clamp10(score), n: c[cat].n + 1 };
+  return c;
+}
 
-  function authorize(req) {
-    const expected = accessCode();
-    const provided = req.get('x-interview-key') || req.body?.code || req.query?.key;
-    const ok = Boolean(expected)
-      ? provided === expected
-      : Boolean(devFallback()) && provided === devFallback();
-    return ok;
+function sanitizeScores(scores) {
+  const out = {};
+  for (const d of EVAL_DIMS) out[d] = clamp10(scores?.[d]);
+  return out;
+}
+
+function normalizeReport(r) {
+  return {
+    overall: pct(r.overall),
+    categories: r.categories && typeof r.categories === 'object' ? r.categories : {},
+    summary: String(r.summary || ''),
+    strongestAnswers: Array.isArray(r.strongestAnswers) ? r.strongestAnswers : [],
+    weakestAnswers: Array.isArray(r.weakestAnswers) ? r.weakestAnswers : [],
+    redFlags: Array.isArray(r.redFlags) ? r.redFlags : [],
+    improvementPlan: Array.isArray(r.improvementPlan) ? r.improvementPlan : [],
+    voiceNotes: String(r.voiceNotes || ''),
+    practiceRecommendation: r.practiceRecommendation && INTERVIEW_TYPES[r.practiceRecommendation.type]
+      ? r.practiceRecommendation
+      : { type: 'general', focus: '', reason: '' },
+  };
+}
+
+async function ownerAccount(req, res) {
+  if (!dbConfigured()) {
+    res.status(503).json({ error: 'Database not configured.' });
+    return null;
   }
-
-  function requireAuth(req, res) {
-    const key = req.ip || 'anon';
-    const lockedUntil = authAttempts.get(key) || 0;
-    if (lockedUntil > Date.now()) {
-      res.status(429).json({ error: 'Too many attempts. Wait a minute.' });
-      return false;
-    }
-    if (!authorize(req)) {
-      const fails = (authAttempts.get(`${key}:fails`) || 0) + 1;
-      authAttempts.set(`${key}:fails`, fails);
-      if (fails >= AUTH_MAX_FAILS) {
-        authAttempts.set(key, Date.now() + AUTH_LOCK_MS);
-        authAttempts.set(`${key}:fails`, 0);
-      }
-      res.status(401).json({
-        error: accessCode() ? 'Invalid access code.' : 'MBZUAI_ACCESS_CODE is not configured on the server.',
-        configured: Boolean(accessCode()),
-      });
-      return false;
-    }
-    authAttempts.set(`${key}:fails`, 0);
-    return true;
+  const token = tokenFrom(req);
+  if (!token) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return null;
   }
+  try {
+    const account = await accountForToken(token);
+    if (!account) {
+      res.status(401).json({ error: 'Not signed in.' });
+      return null;
+    }
+    if (account.role !== 'owner') {
+      res.status(403).json({ error: 'This feature is only available to the owner account.' });
+      return null;
+    }
+    return account;
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+    return null;
+  }
+}
 
-  app.post('/api/interview/auth', (req, res) => {
-    const limits = { dailyInterviews: Math.max(1, Number(process.env.MBZUAI_DAILY_LIMIT) || 15) };
-    if (authorize(req)) return res.json({ ok: true, limits });
-    const configured = Boolean(accessCode());
-    const valid = !configured && devFallback() === req.body?.code;
-    if (valid) return res.json({ ok: true, fallback: true, limits });
-    return res.status(401).json({
-      error: configured ? 'Invalid access code.' : 'Server owner must set MBZUAI_ACCESS_CODE.',
-      configured,
-    });
+const dailyLimit = () => Math.max(1, Number(process.env.MBZUAI_DAILY_LIMIT) || 15);
+
+async function usedToday(accountId) {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const rows = await db.select('interviews', {
+    account_id: `eq.${accountId}`,
+    created_at: `gte.${since}`,
+    select: 'id',
+  });
+  return rows?.length || 0;
+}
+
+export function registerInterviewRoutes(app) {
+  app.get('/api/config', (req, res) => {
+    res.json({ dailyLimit: dailyLimit() });
   });
 
   app.post('/api/interview/start', async (req, res) => {
-    if (!requireAuth(req, res)) return;
+    const account = await ownerAccount(req, res);
+    if (!account) return;
     const type = INTERVIEW_TYPES[req.body.type] ? req.body.type : 'general';
     const config = INTERVIEW_TYPES[type];
     const profile = req.body.profile || null;
     const focus = typeof req.body.focus === 'string' ? req.body.focus.slice(0, 500) : '';
     const targetQuestions = Math.min(Number(req.body.targetQuestions) || config.targetQuestions, 20);
+
+    try {
+      const used = await usedToday(account.id);
+      if (used >= dailyLimit()) {
+        return res.status(429).json({ error: `Daily limit reached (${dailyLimit()} interviews per day).` });
+      }
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
 
     const messages = [
       {
@@ -276,7 +298,7 @@ export function registerInterviewRoutes(app, deps) {
     ];
 
     try {
-      const { data, model } = await callStructured(deps, 'reasoning', messages, 0.7);
+      const { data, model } = await callStructured(messages, 0.7);
       const state = {
         qCount: 1,
         targetQs: targetQuestions,
@@ -302,7 +324,8 @@ export function registerInterviewRoutes(app, deps) {
   });
 
   app.post('/api/interview/answer', async (req, res) => {
-    if (!requireAuth(req, res)) return;
+    const account = await ownerAccount(req, res);
+    if (!account) return;
     const { type, question, answer } = req.body;
     if (!question || !answer || !String(answer).trim()) {
       return res.status(400).json({ error: 'question and answer required' });
@@ -313,23 +336,20 @@ export function registerInterviewRoutes(app, deps) {
     const history = Array.isArray(req.body.history) ? req.body.history.slice(-6) : [];
     const meta = req.body.meta || null;
 
-    const messages = buildTurnMessages({ type, config, profile, state, history, question, answer, meta });
-
     try {
-      const { data, model } = await callStructured(deps, 'reasoning', messages, 0.55);
+      const { data, model } = await callStructured(buildTurnMessages({ config, profile, state, history, question, answer, meta }), 0.55);
 
       const newState = {
         qCount: (state.qCount || 1) + 1,
         targetQs: state.targetQs || config.targetQuestions,
         digest: String(data.digest || state.digest || '').slice(0, 1500),
         claims: [...(state.claims || []), ...(Array.isArray(data.newClaims) ? data.newClaims.slice(0, 3) : [])].slice(-25),
-        categories: updateCategories(state.categories, data.category || inferCategory(type, data.question), data.turnScore),
+        categories: updateCategories(state.categories, data.category || (type === 'technical' ? 'technical' : 'general'), data.turnScore),
         asked: [...(state.asked || []), data.question].filter(Boolean).slice(-20),
         flags: [...(state.flags || []), ...(Array.isArray(data.flags) ? data.flags : [])].slice(-30),
       };
 
-      const reachedTarget = newState.qCount > newState.targetQs;
-      const done = reachedTarget || data.finish === true;
+      const done = newState.qCount > newState.targetQs || data.finish === true;
 
       res.json({
         ok: true,
@@ -353,7 +373,8 @@ export function registerInterviewRoutes(app, deps) {
   });
 
   app.post('/api/interview/report', async (req, res) => {
-    if (!requireAuth(req, res)) return;
+    const account = await ownerAccount(req, res);
+    if (!account) return;
     const transcript = Array.isArray(req.body.transcript) ? req.body.transcript : [];
     if (!transcript.length) return res.status(400).json({ error: 'transcript required' });
     const config = INTERVIEW_TYPES[req.body.type] || INTERVIEW_TYPES.general;
@@ -365,7 +386,7 @@ export function registerInterviewRoutes(app, deps) {
       [
         `Q${i + 1}${t.category ? ` (${t.category})` : ''}: ${t.question}`,
         `A${i + 1}: ${String(t.answer).slice(0, 2500)}`,
-        t.meta && hasVoiceMeta(t.meta) ? `[delivery: ~${t.meta.words} words, ${Math.round(t.meta.durationSec)}s, ${t.meta.wpm} wpm, ${t.meta.fillers} fillers]` : '',
+        t.meta && typeof t.meta.durationSec === 'number' ? `[delivery: ~${t.meta.words} words, ${Math.round(t.meta.durationSec)}s, ${t.meta.wpm} wpm, ${t.meta.fillers} fillers]` : '',
         t.analysis?.turnScore != null ? `[internal turn score: ${t.analysis.turnScore}/10]` : '',
       ].filter(Boolean).join('\n')
     ).join('\n\n');
@@ -404,15 +425,29 @@ Respond with ONLY valid JSON:
     ];
 
     try {
-      const { data, model } = await callStructured(deps, 'reasoning', messages, 0.3);
-      res.json({ ok: true, report: normalizeReport(data), answeredBy: model });
+      const { data, model } = await callStructured(messages, 0.3);
+      const report = normalizeReport(data);
+
+      try {
+        await db.insert('interviews', {
+          account_id: account.id,
+          type: req.body.type || 'general',
+          overall: report.overall,
+          report,
+          transcript: transcript.slice(0, 40),
+          duration_sec: Math.round(durationSec),
+        });
+      } catch {}
+
+      res.json({ ok: true, report, answeredBy: model });
     } catch (e) {
       res.status(503).json({ error: e.message, attempts: e.attempts });
     }
   });
 
   app.post('/api/interview/coach', async (req, res) => {
-    if (!requireAuth(req, res)) return;
+    const account = await ownerAccount(req, res);
+    if (!account) return;
     const { question, answer } = req.body;
     if (!question || !answer) return res.status(400).json({ error: 'question and answer required' });
     const profile = req.body.profile || null;
@@ -446,57 +481,69 @@ Respond with ONLY valid JSON:
     ];
 
     try {
-      const { data, model } = await callStructured(deps, 'reasoning', messages, 0.4);
+      const { data, model } = await callStructured(messages, 0.4);
       res.json({ ok: true, coaching: data, answeredBy: model });
     } catch (e) {
       res.status(503).json({ error: e.message, attempts: e.attempts });
     }
   });
-}
 
-function updateCategories(cats, category, score) {
-  const c = { ...(cats || {}) };
-  const cat = category || 'general';
-  if (typeof score !== 'number' || Number.isNaN(score)) return c;
-  if (!c[cat]) c[cat] = { sum: 0, n: 0 };
-  c[cat] = { sum: c[cat].sum + clamp10(score), n: c[cat].n + 1 };
-  return c;
-}
+  app.get('/api/profile', async (req, res) => {
+    const account = await ownerAccount(req, res);
+    if (!account) return;
+    try {
+      const rows = await db.select('interview_profiles', { account_id: `eq.${account.id}`, limit: '1' });
+      res.json({ ok: true, profile: rows?.[0]?.data || null });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
-function inferCategory(type) {
-  return type === 'technical' ? 'technical' : type === 'research' ? 'research' : 'general';
-}
+  app.put('/api/profile', async (req, res) => {
+    const account = await ownerAccount(req, res);
+    if (!account) return;
+    const data = req.body?.data;
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data object required' });
+    try {
+      await db.upsert('interview_profiles', { account_id: account.id, data, updated_at: new Date().toISOString() }, 'account_id');
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
-function clamp10(n) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return null;
-  return Math.max(0, Math.min(10, Math.round(v * 10) / 10));
-}
+  app.get('/api/interviews', async (req, res) => {
+    const account = await ownerAccount(req, res);
+    if (!account) return;
+    try {
+      if (req.query.id) {
+        const rows = await db.select('interviews', {
+          account_id: `eq.${account.id}`,
+          id: `eq.${req.query.id}`,
+          limit: '1',
+        });
+        if (!rows?.length) return res.status(404).json({ error: 'Not found.' });
+        return res.json({ ok: true, interview: rows[0] });
+      }
+      const rows = await db.select('interviews', {
+        account_id: `eq.${account.id}`,
+        order: 'created_at.desc',
+        limit: '50',
+        select: 'id,type,overall,report,duration_sec,created_at',
+      });
+      res.json({ ok: true, interviews: rows || [] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
-function sanitizeScores(scores) {
-  const out = {};
-  for (const d of EVAL_DIMS) out[d] = clamp10(scores?.[d]);
-  return out;
-}
-
-function pct(n) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return 0;
-  return Math.max(0, Math.min(100, Math.round(v)));
-}
-
-function normalizeReport(r) {
-  return {
-    overall: pct(r.overall),
-    categories: r.categories && typeof r.categories === 'object' ? r.categories : {},
-    summary: String(r.summary || ''),
-    strongestAnswers: Array.isArray(r.strongestAnswers) ? r.strongestAnswers : [],
-    weakestAnswers: Array.isArray(r.weakestAnswers) ? r.weakestAnswers : [],
-    redFlags: Array.isArray(r.redFlags) ? r.redFlags : [],
-    improvementPlan: Array.isArray(r.improvementPlan) ? r.improvementPlan : [],
-    voiceNotes: String(r.voiceNotes || ''),
-    practiceRecommendation: r.practiceRecommendation && INTERVIEW_TYPES[r.practiceRecommendation.type]
-      ? r.practiceRecommendation
-      : { type: 'general', focus: '', reason: '' },
-  };
+  app.get('/api/usage', async (req, res) => {
+    const account = await ownerAccount(req, res);
+    if (!account) return;
+    try {
+      res.json({ ok: true, used: await usedToday(account.id), limit: dailyLimit() });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 }

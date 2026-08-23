@@ -68,6 +68,7 @@ async function ensureBank(force = false) {
   diagConfig = data.diagnostic;
   mockConfig = data.mock;
   diagnosticIds = data.diagnosticIds;
+  window.__mbkBlueprint = data.fullTestBlueprint || {};
   return bank;
 }
 
@@ -386,54 +387,89 @@ function renderDiagIntro() {
 function renderMockIntro() {
   const s = getState();
   const aiLeft = Math.max(0, AI_LIMITS.gen - s.aiUsage.gen);
-  const aiBox = h('input', { type: 'checkbox', id: 'mockAi' });
+  const bp = window.__mbkBlueprint || {};
+  const bpRows = Object.entries(bp).map(([t, n]) => `${topicName(t)}×${n}`).join(' · ');
+  const modeAi = h('input', { type: 'radio', name: 'ftmode', value: 'ai', checked: true });
+  const modeBank = h('input', { type: 'radio', name: 'ftmode', value: 'bank' });
   const status = h('div', { class: 'mz-muted', id: 'mockAiStatus' });
   root.replaceChildren(
     topNav('mock'),
     h('div', { class: 'mz-card mz-narrow' },
       h('h2', {}, 'Full Test — Mock Exam'),
-      h('p', {}, `${mockConfig.count} mixed questions · ${mockConfig.minutes} minutes · mirrors the public syllabus spread.`),
-      h('ul', { class: 'mz-rules' },
-        h('li', {}, 'Fresh selection every attempt — no repeats from your previous test'),
-        h('li', {}, 'No hints during the exam'),
-        h('li', {}, 'Flag questions to revisit'),
-        h('li', {}, 'Auto-submit when time expires'),
-        h('li', {}, 'Detailed analysis afterwards')),
-      h('label', { class: 'row gap', style: 'margin-top:10px;font-size:13.5px;' },
-        aiBox,
-        h('span', {}, `Also create ${Math.min(6, aiLeft)} brand-new AI questions for this test `, h('span', { class: 'mz-muted' }, `(daily allowance left: ${aiLeft})`))),
+      h('p', {}, `${mockConfig.count} questions · ${mockConfig.minutes} minutes. Fixed composition on every take:`),
+      h('p', { class: 'mz-note' }, bpRows),
+      h('div', { class: 'col gap', style: 'margin-top:10px;font-size:13.5px;' },
+        h('label', { class: 'row gap' }, modeAi,
+          h('span', {}, h('strong', {}, 'Fresh AI-built test'), ` — generated now by your own API key, MBZUAI-syllabus only `, h('span', { class: 'mz-muted' }, `(uses 2 of ${aiLeft} daily AI credits)`))),
+        h('label', { class: 'row gap' }, modeBank,
+          h('span', {}, 'Rotating curated bank — no AI credits used'))),
       status,
       h('button', {
         class: 'btn primary big',
         onclick: async (ev) => {
           const btn = ev.currentTarget;
           btn.disabled = true;
-          btn.textContent = 'Preparing your test…';
-          if (aiBox.checked && aiLeft > 0) {
-            try {
-              const topicsForAi = [...topics].sort(() => Math.random() - 0.5).slice(0, 2);
-              let made = 0;
-              for (const t of topicsForAi) {
-                if (getState().aiUsage.gen >= AI_LIMITS.gen) break;
-                const data = await api('/api/mbzuai/generate', {
-                  method: 'POST',
-                  body: JSON.stringify({ topic: t.id, difficulty: 'mixed', count: 3 }),
-                });
-                bumpAi('gen');
-                getState().genPool.push(...data.questions);
-                for (const q of data.questions) {
-                  if (!bank.some((x) => x.id === q.id)) bank.push(q);
-                  bankById[q.id] = q;
-                }
-                made += data.questions.length;
-              }
-              save();
-              status.textContent = `${made} fresh AI questions added to this test.`;
-            } catch (e) {
-              status.textContent = `AI top-up skipped (${e.message.slice(0, 60)}) — continuing with rotated bank.`;
-            }
+          const useAi = modeAi.checked;
+          if (!useAi) {
+            startSession({ mode: 'mock' });
+            return;
           }
-          startSession({ mode: 'mock' });
+          btn.textContent = 'Creating your unique test…';
+          try {
+            if (aiLeft < 2) throw new Error(`needs 2 AI credits, ${aiLeft} left today`);
+            const s2 = getState();
+            const avoidIds = s2.mocks.at(-1)?.usedIds || [];
+            let avoid = avoidIds.map((id) => (bankById[id]?.q || '').slice(0, 80).replace(/\s+/g, ' ')).filter(Boolean);
+            const chosen = [];
+            const chosenIds = new Set();
+            const batchCount = 6;
+            for (let bi = 0; bi < batchCount; bi++) {
+              btn.textContent = `Creating your unique test… (${bi + 1}/${batchCount})`;
+              const r = await fetch(`/api/mbzuai/full-test/${bi}?avoid=${encodeURIComponent(avoid.slice(0, 8).join('~~'))}`, {
+                headers: { Authorization: `Bearer ${s2.token}` },
+              });
+              const data = await r.json().catch(() => ({ ok: false, error: 'bad response' }));
+              if (!r.ok || !data.ok) {
+                status.textContent = `${data.genre || `Batch ${bi + 1}`}: unavailable this round.`;
+                continue;
+              }
+              let added = 0;
+              for (const q of data.questions) {
+                if (chosenIds.has(q.id)) continue;
+                q.id = q.id + '-' + Math.random().toString(36).slice(2, 5);
+                chosen.push(q); chosenIds.add(q.id); added++;
+                avoid.push(q.q.slice(0, 80).replace(/\s+/g, ' '));
+                if (!bank.some((x) => x.id === q.id)) bank.push(q);
+                bankById[q.id] = q;
+              }
+              status.textContent = `${data.genre}: ${added} fresh questions ready.`;
+            }
+            bumpAi('gen'); bumpAi('gen');
+            for (const [tid, want] of Object.entries(bp)) {
+              let have = chosen.filter((q) => q.topic === tid && q.source === 'ai').length;
+              const pool = bank.filter((q) => q.topic === tid && q.source !== 'ai'
+                && !chosenIds.has(q.id) && !avoidIds.includes(q.id))
+                .sort(() => Math.random() - 0.5);
+              while (have < want && pool.length) {
+                const q = pool.pop();
+                chosen.push(q); chosenIds.add(q.id); have++;
+              }
+              while (have < want) {
+                const q = pickQuestion(bank, 'practice', { topics: [tid] });
+                if (chosenIds.has(q.id)) break;
+                chosen.push(q); chosenIds.add(q.id); have++;
+              }
+            }
+            getState().genPool.push(...chosen.filter((q) => q.source === 'ai'));
+            if (getState().genPool.length > 200) getState().genPool = getState().genPool.slice(-200);
+            save();
+            const aiCount = chosen.filter((q) => q.source === 'ai').length;
+            status.textContent = `Built: ${aiCount} AI-generated + ${chosen.length - aiCount} curated backfill.`;
+            startSession({ mode: 'mock', ids: chosen.map((q) => q.id) });
+          } catch (e) {
+            status.textContent = `AI build failed (${e.message.slice(0, 70)}) — starting rotated-bank test instead.`;
+            setTimeout(() => startSession({ mode: 'mock' }), 1200);
+          }
         },
       }, 'Start Full Test'),
     ),
