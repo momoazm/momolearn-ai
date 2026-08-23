@@ -1265,3 +1265,7 @@ tabButtons.forEach((b) =>
     tabButtons.forEach((x) => x.classList.toggle('active', x === b));
     showMbzuai(b.dataset.view === 'mbzuai');
   }));
+
+if (new URLSearchParams(location.search).get('key')) {
+  document.querySelector('.tab[data-view="mbzuai"]')?.click();
+}
