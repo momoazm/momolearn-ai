@@ -179,7 +179,7 @@ function topNav(active) {
   const items = [
     ['dash', 'Dashboard'],
     ['practice', 'Practice'],
-    ['mock', 'Mock Exam'],
+    ['mock', 'Full Test'],
     ['mistakes', `Mistakes${dueMistakeCount() ? ` (${dueMistakeCount()})` : ''}`],
     ['plan', 'Study Plan'],
     ['progress', 'Progress'],
@@ -251,11 +251,11 @@ function renderDashboard() {
             return h('li', {}, h('span', { class: r.correct ? 'ok' : 'bad' }, r.correct ? '✓' : '✗'), ` ${q ? q.sub : r.id}`, h('span', { class: 'mz-muted' }, ` · ${(r.ms / 1000).toFixed(0)}s`));
           }))),
       h('div', { class: 'mz-card' },
-        h('h3', {}, 'Mock exams'),
+        h('h3', {}, 'Full tests'),
         lastMocks.length === 0 ? h('p', { class: 'mz-muted' }, 'No mocks yet.') :
           h('ul', { class: 'mz-list' }, lastMocks.map((m) =>
             h('li', {}, `${m.pct}% · ${new Date(m.at).toLocaleDateString()}`, h('span', { class: 'mz-muted' }, ` · ${m.correct}/${m.total}`)))),
-        h('button', { class: 'btn ghost', onclick: renderMockIntro }, 'New mock exam'),
+        h('button', { class: 'btn ghost', onclick: renderMockIntro }, 'New full test'),
       ),
     ),
     disclaimer(),
@@ -384,17 +384,58 @@ function renderDiagIntro() {
 }
 
 function renderMockIntro() {
+  const s = getState();
+  const aiLeft = Math.max(0, AI_LIMITS.gen - s.aiUsage.gen);
+  const aiBox = h('input', { type: 'checkbox', id: 'mockAi' });
+  const status = h('div', { class: 'mz-muted', id: 'mockAiStatus' });
   root.replaceChildren(
     topNav('mock'),
     h('div', { class: 'mz-card mz-narrow' },
-      h('h2', {}, 'Mock Exam'),
-      h('p', {}, `${mockConfig.count} mixed questions · ${mockConfig.minutes} minutes · randomized topics & difficulty mirroring the public syllabus spread.`),
+      h('h2', {}, 'Full Test — Mock Exam'),
+      h('p', {}, `${mockConfig.count} mixed questions · ${mockConfig.minutes} minutes · mirrors the public syllabus spread.`),
       h('ul', { class: 'mz-rules' },
+        h('li', {}, 'Fresh selection every attempt — no repeats from your previous test'),
         h('li', {}, 'No hints during the exam'),
         h('li', {}, 'Flag questions to revisit'),
         h('li', {}, 'Auto-submit when time expires'),
         h('li', {}, 'Detailed analysis afterwards')),
-      h('button', { class: 'btn primary big', onclick: () => startSession({ mode: 'mock' }) }, 'Start Mock Exam'),
+      h('label', { class: 'row gap', style: 'margin-top:10px;font-size:13.5px;' },
+        aiBox,
+        h('span', {}, `Also create ${Math.min(6, aiLeft)} brand-new AI questions for this test `, h('span', { class: 'mz-muted' }, `(daily allowance left: ${aiLeft})`))),
+      status,
+      h('button', {
+        class: 'btn primary big',
+        onclick: async (ev) => {
+          const btn = ev.currentTarget;
+          btn.disabled = true;
+          btn.textContent = 'Preparing your test…';
+          if (aiBox.checked && aiLeft > 0) {
+            try {
+              const topicsForAi = [...topics].sort(() => Math.random() - 0.5).slice(0, 2);
+              let made = 0;
+              for (const t of topicsForAi) {
+                if (getState().aiUsage.gen >= AI_LIMITS.gen) break;
+                const data = await api('/api/mbzuai/generate', {
+                  method: 'POST',
+                  body: JSON.stringify({ topic: t.id, difficulty: 'mixed', count: 3 }),
+                });
+                bumpAi('gen');
+                getState().genPool.push(...data.questions);
+                for (const q of data.questions) {
+                  if (!bank.some((x) => x.id === q.id)) bank.push(q);
+                  bankById[q.id] = q;
+                }
+                made += data.questions.length;
+              }
+              save();
+              status.textContent = `${made} fresh AI questions added to this test.`;
+            } catch (e) {
+              status.textContent = `AI top-up skipped (${e.message.slice(0, 60)}) — continuing with rotated bank.`;
+            }
+          }
+          startSession({ mode: 'mock' });
+        },
+      }, 'Start Full Test'),
     ),
   );
 }
@@ -444,16 +485,20 @@ function startSession(cfg) {
 }
 
 function sampleMock() {
+  const s = getState();
+  const prevIds = new Set(s.mocks.at(-1)?.usedIds || []);
   const byTopic = new Map(topics.map((t) => [t.id, []]));
   for (const q of bank) {
     if (byTopic.has(q.topic)) byTopic.get(q.topic).push(q);
   }
+  for (const [, list] of byTopic) list.sort((a, b) => (prevIds.has(a.id) ? 1 : 0) - (prevIds.has(b.id) ? 1 : 0));
   const picked = [];
   let guard = 0;
-  while (picked.length < mockConfig.count && guard++ < 500) {
-    for (const t of topics) {
+  while (picked.length < mockConfig.count && guard++ < 800) {
+    for (const t of topics.sort(() => Math.random() - 0.5)) {
       if (picked.length >= mockConfig.count) break;
-      const pool = byTopic.get(t.id).filter((q) => !picked.includes(q));
+      const fresh = byTopic.get(t.id).filter((q) => !prevIds.has(q.id) && !picked.includes(q));
+      const pool = fresh.length ? fresh : byTopic.get(t.id).filter((q) => !picked.includes(q));
       if (pool.length) picked.push(pool[Math.floor(Math.random() * pool.length)]);
     }
   }
@@ -892,6 +937,7 @@ function finalizeMock(auto) {
   s.mocks.push({
     at: Date.now(), pct, correct, total, avgMs,
     lostToTime: lostToTime.length, mistakes: wrong.length,
+    usedIds: session.queue.map((q) => q.id),
   });
   if (s.mocks.length > 50) s.mocks = s.mocks.slice(-50);
   markStreak();
