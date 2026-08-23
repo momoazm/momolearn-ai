@@ -85,12 +85,31 @@ export function showMbzuai(on) {
 
 async function boot() {
   stopTick();
-  if (!getState().token) {
+  const urlKey = new URLSearchParams(location.search).get('key');
+  if (!getState().token && !urlKey) {
     renderGate();
     return;
   }
   root.replaceChildren(h('div', { class: 'mz-loading' }, 'Loading MBZUAI Prep…'));
   try {
+    if (urlKey && !getState().token) {
+      const r = await fetch('/api/mbzuai/access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: urlKey }),
+      });
+      const data = await r.json();
+      if (r.ok && data.token) {
+        const st = getState();
+        st.token = data.token;
+        save();
+        history.replaceState(null, '', location.pathname);
+      } else {
+        history.replaceState(null, '', location.pathname);
+        renderGate(Object.assign(new Error(data.error || 'Invalid key'), { status: 401 }));
+        return;
+      }
+    }
     await pullAccountState();
     await ensureBank();
     renderDashboard();
