@@ -9,6 +9,7 @@ export function todayStr(d = new Date()) {
 function freshState() {
   return {
     v: 1,
+    savedAt: 0,
     token: null,
     onboarded: false,
     settings: { examDate: '', targetScore: 80, hoursPerDay: 2 },
@@ -47,11 +48,32 @@ export function getState() {
 }
 
 let saveTimer = null;
+let persistListener = null;
+let suppressNotify = false;
+
+export function onPersist(fn) {
+  persistListener = fn;
+}
+
 export function save() {
+  state.savedAt = Date.now();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+    if (persistListener && !suppressNotify) {
+      try { persistListener(state); } catch {}
+    }
   }, 120);
+}
+
+export function replaceLocal(next) {
+  if (!next || typeof next !== 'object' || next.v !== 1) return false;
+  const token = state.token;
+  suppressNotify = true;
+  state = { ...freshState(), ...next, token };
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  suppressNotify = false;
+  return true;
 }
 
 export function resetProgress() {

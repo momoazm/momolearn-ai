@@ -1,6 +1,7 @@
 import {
-  getState, save, resetProgress, currentStreak, markStreak, bumpAi, AI_LIMITS,
+  getState, save, resetProgress, currentStreak, markStreak, bumpAi, AI_LIMITS, onPersist,
 } from './store.js';
+import { pullAccountState, schedulePush, lastSyncInfo } from './sync.js';
 import {
   applyAnswer, setMistakeClass, readiness, rollingAccuracy, weakestTopics, strongestTopics,
   dueMistakeIds, pickQuestion, recommendNext, buildPlan, classifyDefault, masteryFor,
@@ -90,6 +91,7 @@ async function boot() {
   }
   root.replaceChildren(h('div', { class: 'mz-loading' }, 'Loading MBZUAI Prep…'));
   try {
+    await pullAccountState();
     await ensureBank();
     renderDashboard();
   } catch (e) {
@@ -97,6 +99,8 @@ async function boot() {
     else renderError(e);
   }
 }
+
+onPersist(() => schedulePush());
 
 function renderError(e) {
   root.replaceChildren(
@@ -204,6 +208,7 @@ function renderDashboard() {
             h('div', { class: 'mz-kv' }, `Preparation score: ${ready}% · Target: ${target}%`),
             h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, ready)}%` })),
             h('div', { class: 'mz-kv sub' }, s.onboarded ? '' : 'Take the diagnostic assessment to calibrate your plan.'),
+            syncBadge(),
           )),
         !s.onboarded && h('button', { class: 'btn primary big', onclick: renderDiagIntro }, 'Start Diagnostic Assessment'),
       ),
@@ -236,6 +241,18 @@ function renderDashboard() {
     ),
     disclaimer(),
   );
+}
+
+function syncBadge() {
+  const backend = lastSyncInfo.backend;
+  const label = lastSyncInfo.direction === 'pulled'
+    ? `Restored from your account (${backend === 'kv' ? 'cloud' : backend})`
+    : backend === 'kv' ? 'Account sync active — plan & progress follow your code'
+      : backend === 'file' ? 'Saved to this server (owner store)'
+        : backend ? 'This device only — connect Vercel KV for account sync'
+          : '';
+  if (!label) return null;
+  return h('div', { class: `sync-badge${backend === 'kv' ? ' on' : ''}` }, `${backend === 'kv' || backend === 'file' ? '☁' : '⃝'} ${label}`);
 }
 
 function statCard(label, value) {

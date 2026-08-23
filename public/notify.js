@@ -8,22 +8,27 @@ const Notify = (() => {
   document.body.appendChild(host);
 
   let audioCtx;
-  function chime() {
+  async function chime() {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const t = audioCtx.currentTime;
-      [880, 1318].forEach((freq, i) => {
+      if (audioCtx.state !== 'running') {
+        try { await audioCtx.resume(); } catch {}
+        if (audioCtx.state !== 'running') return;
+      }
+      // Warm two-note "done" ding (A5 down to E5), triangle timbre.
+      const t0 = audioCtx.currentTime + 0.02;
+      [[880, 0], [659.25, 0.15]].forEach(([freq, at]) => {
+        const start = t0 + at;
         const o = audioCtx.createOscillator();
         const g = audioCtx.createGain();
-        o.type = 'sine';
+        o.type = 'triangle';
         o.frequency.value = freq;
-        g.gain.setValueAtTime(0.0001, t + i * 0.13);
-        g.gain.exponentialRampToValueAtTime(0.07, t + i * 0.13 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.13 + 0.28);
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(0.11, start + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
         o.connect(g).connect(audioCtx.destination);
-        o.start(t + i * 0.13);
-        o.stop(t + i * 0.13 + 0.32);
+        o.start(start);
+        o.stop(start + 0.48);
       });
     } catch {}
   }
@@ -76,9 +81,9 @@ const Notify = (() => {
 
   function push({ title, body = '', kind = 'ok' }) {
     toast(title, body, kind);
-    if (!enabled || !document.hidden) return;
+    if (!enabled) return;
     chime();
-    native(title, body, kind);
+    if (document.hidden) native(title, body, kind);
   }
 
   async function setEnabled(on) {
