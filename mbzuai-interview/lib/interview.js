@@ -1,4 +1,4 @@
-import { db, dbConfigured } from './db.js';
+﻿import { db, dbConfigured } from './db.js';
 import { accountForToken, tokenFrom } from './accounts.js';
 import { runChain } from './ai.js';
 
@@ -217,7 +217,7 @@ function normalizeReport(r) {
   };
 }
 
-async function ownerAccount(req, res) {
+async function authedAccount(req, res) {
   if (!dbConfigured()) {
     res.status(503).json({ error: 'Database not configured.' });
     return null;
@@ -231,10 +231,6 @@ async function ownerAccount(req, res) {
     const account = await accountForToken(token);
     if (!account) {
       res.status(401).json({ error: 'Not signed in.' });
-      return null;
-    }
-    if (account.role !== 'owner') {
-      res.status(403).json({ error: 'This feature is only available to the owner account.' });
       return null;
     }
     return account;
@@ -262,7 +258,7 @@ export function registerInterviewRoutes(app) {
   });
 
   app.post('/api/interview/start', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     const type = INTERVIEW_TYPES[req.body.type] ? req.body.type : 'general';
     const config = INTERVIEW_TYPES[type];
@@ -324,7 +320,7 @@ export function registerInterviewRoutes(app) {
   });
 
   app.post('/api/interview/answer', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     const { type, question, answer } = req.body;
     if (!question || !answer || !String(answer).trim()) {
@@ -373,7 +369,7 @@ export function registerInterviewRoutes(app) {
   });
 
   app.post('/api/interview/report', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     const transcript = Array.isArray(req.body.transcript) ? req.body.transcript : [];
     if (!transcript.length) return res.status(400).json({ error: 'transcript required' });
@@ -446,7 +442,7 @@ Respond with ONLY valid JSON:
   });
 
   app.post('/api/interview/coach', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     const { question, answer } = req.body;
     if (!question || !answer) return res.status(400).json({ error: 'question and answer required' });
@@ -489,7 +485,7 @@ Respond with ONLY valid JSON:
   });
 
   app.get('/api/profile', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     try {
       const rows = await db.select('interview_profiles', { account_id: `eq.${account.id}`, limit: '1' });
@@ -500,7 +496,7 @@ Respond with ONLY valid JSON:
   });
 
   app.put('/api/profile', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     const data = req.body?.data;
     if (!data || typeof data !== 'object') return res.status(400).json({ error: 'data object required' });
@@ -513,7 +509,7 @@ Respond with ONLY valid JSON:
   });
 
   app.get('/api/interviews', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     try {
       if (req.query.id) {
@@ -538,7 +534,7 @@ Respond with ONLY valid JSON:
   });
 
   app.get('/api/usage', async (req, res) => {
-    const account = await ownerAccount(req, res);
+    const account = await authedAccount(req, res);
     if (!account) return;
     try {
       res.json({ ok: true, used: await usedToday(account.id), limit: dailyLimit() });
@@ -547,3 +543,4 @@ Respond with ONLY valid JSON:
     }
   });
 }
+

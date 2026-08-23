@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign in · MBZUAI Interview Coach</title>
+  <title>Sign in Â· MBZUAI Interview Coach</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -70,17 +70,14 @@
       <label for="username">Username</label>
       <input type="text" id="username" autocomplete="username" placeholder="username" />
       <label for="password">Password</label>
-      <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" />
+      <input type="password" id="password" autocomplete="current-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
       <button class="go" id="goBtn">Sign in</button>
       <div class="err" id="err"></div>
-      <div class="note">Independent practice simulator inspired by publicly available information about AI graduate admissions. Not affiliated with MBZUAI.</div>
+      <div class="note">Independent practice simulator inspired by publicly available information about AI graduate admissions. Not affiliated with MBZUAI. Free sign-in Â· your progress is saved to your account.</div>
     </div>
-
-    <div class="card denied" id="deniedCard">
-      <h2>Not available for this account</h2>
-      <p id="deniedMsg">The interview simulator is limited to the owner account. You are signed in, but this feature is not enabled for your account.</p>
-      <button id="logoutBtn">Sign out</button>
-    </div>
+    <p style="text-align:center; margin-top:14px; font-size:12.5px;">
+      <a href="/keys.html" style="color:var(--muted);">Practice unlimited — add a free AI key</a>
+    </p>
   </div>
 
   <script>
@@ -113,14 +110,8 @@
           return;
         }
         localStorage.setItem('mi.token', data.token);
-        localStorage.setItem('mi.role', data.role);
         localStorage.setItem('mi.username', data.username);
-        if (data.role === 'owner') {
-          location.href = '/interview.html';
-        } else {
-          $('authCard').style.display = 'none';
-          $('deniedCard').style.display = 'block';
-        }
+        location.href = '/interview.html';
       } catch {
         $('err').textContent = 'Network error.';
       } finally {
@@ -129,20 +120,6 @@
     }
     $('goBtn').addEventListener('click', submit);
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
-    $('logoutBtn').addEventListener('click', async () => {
-      try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + localStorage.getItem('mi.token') },
-        });
-      } catch {}
-      localStorage.removeItem('mi.token');
-      localStorage.removeItem('mi.role');
-      localStorage.removeItem('mi.username');
-      $('deniedCard').style.display = 'none';
-      $('authCard').style.display = 'block';
-      setMode('login');
-    });
 
     (async function boot() {
       const token = localStorage.getItem('mi.token');
@@ -150,14 +127,10 @@
       try {
         const res = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
         if (!res.ok) { localStorage.removeItem('mi.token'); return; }
-        const me = await res.json();
-        if (me.role === 'owner') location.href = '/interview.html';
-        else {
-          $('authCard').style.display = 'none';
-          $('deniedCard').style.display = 'block';
-        }
+        location.href = '/interview.html';
       } catch {}
     })();
   </script>
 </body>
 </html>
+

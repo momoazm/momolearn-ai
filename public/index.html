@@ -98,6 +98,9 @@
         <button class="tab" data-view="mbzuai" type="button">MBZUAI Prep</button>
       </nav>
       <a href="https://mbzuai-interview.vercel.app" target="_blank" rel="noopener" class="bell" title="MBZUAI Interview Coach (opens your account login)" style="text-decoration:none; font-size:12px; font-weight:600;">Interview</a>
+      <a href="/keys.html" id="keyChip" class="bell" title="Add your free AI key" aria-label="Add your free AI key" style="text-decoration:none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      </a>
       <button class="bell" id="bell" type="button" title="Toggle pop-up notifications" aria-label="Toggle notifications">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       </button>
@@ -113,6 +116,7 @@
   <section id="mbzuaiView" hidden></section>
 
   <script src="/notify.js"></script>
+  <script src="/byok.js"></script>
   <script type="module" src="/mbzuai/app.js"></script>
   <script>
     const chat = document.getElementById('chat');
@@ -128,6 +132,13 @@
       bell.title = Notify.enabled ? 'Notifications on — click to mute' : 'Notifications off — click to enable';
     }
     paintBell();
+    function paintKeyChip() {
+      var chip = document.getElementById('keyChip');
+      var on = Boolean(window.Byok && Byok.get());
+      chip.classList.toggle('on', on);
+      chip.title = on ? 'Using your own AI key (' + Byok.get().provider + ')' : 'Add your free AI key';
+    }
+    paintKeyChip();
     bell.addEventListener('click', async () => {
       await Notify.setEnabled(!Notify.enabled);
       if (Notify.enabled) Notify.push({ title: 'Notifications on', body: 'You will be pinged when a chat stops or needs your answer.' });
@@ -175,7 +186,7 @@
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(window.Byok ? Byok.headers() : {}) },
           body: JSON.stringify({ messages: [{ role: 'system', content: 'You are MomoLearn AI, a friendly study assistant.' }, ...history] }),
         });
         const data = await res.json();
@@ -184,6 +195,13 @@
           const tried = (data.attempts || []).map((a) => a.model).join(', ');
           pending.textContent = data.error || 'Something went wrong.';
           if (tried) statusEl.textContent = `tried: ${tried}`;
+          if ((res.status === 400 || res.status === 401) && /key/i.test(data.error || '')) {
+            const fix = document.createElement('a');
+            fix.href = data.fix || '/keys.html';
+            fix.textContent = 'Add your free AI key \u2192 keys.html';
+            fix.style.cssText = 'display:block;margin-top:6px;color:#cdc9ff;font-size:12px;';
+            pending.appendChild(fix);
+          }
           Notify.push({
             kind: 'warn',
             title: 'Chat stopped — needs your answer',

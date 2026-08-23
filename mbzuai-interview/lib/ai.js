@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 const PROVIDERS = {
   openrouter: {
     baseUrl: 'https://openrouter.ai/api/v1',
@@ -33,9 +35,34 @@ const COOLDOWN_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 45_000;
 const cooldowns = new Map();
 
-export const hasKey = (provider) => Boolean(PROVIDERS[provider]?.key());
-export const isCoolingDown = (label) => (cooldowns.get(label) ?? 0) > Date.now();
-export const markCooldown = (label) => cooldowns.set(label, Date.now() + COOLDOWN_MS);
+const byok = new AsyncLocalStorage();
+
+export function byokMiddleware(req, res, next) {
+  const key = String(req.headers['x-ai-key'] || '').trim();
+  if (!key) return next();
+  const provider = String(req.headers['x-ai-provider'] || '').trim().toLowerCase();
+  if (!PROVIDERS[provider]) {
+    return res.status(400).json({ error: `Unknown AI provider "${provider}". Supported: ${Object.keys(PROVIDERS).join(', ')}.` });
+  }
+  if (key.length < 16 || key.length > 400) {
+    return res.status(400).json({ error: 'That API key looks invalid. Copy the full key from the provider dashboard.' });
+  }
+  byok.run({ provider, key }, next);
+}
+
+const labelKey = (label) => (byok.getStore() ? `byok:${label}` : label);
+
+// Server env keys are honored ONLY outside Vercel (local dev).
+// The deployed site never spends the owner's keys - users must bring their own.
+export const envKeysAllowed = () => !process.env.VERCEL;
+
+export const hasKey = (provider) => {
+  const override = byok.getStore();
+  if (override) return override.provider === provider;
+  return Boolean(envKeysAllowed() && PROVIDERS[provider]?.key());
+};
+export const isCoolingDown = (label) => (cooldowns.get(labelKey(label)) ?? 0) > Date.now();
+export const markCooldown = (label) => cooldowns.set(labelKey(label), Date.now() + COOLDOWN_MS);
 
 const MODEL_POOL = {
   'groq/gpt-oss-120b': { provider: 'groq', model: 'openai/gpt-oss-120b' },
@@ -73,6 +100,14 @@ export function chain() {
 
 export async function callModel(entry, messages, options = {}) {
   const provider = PROVIDERS[entry.provider];
+  const override = byok.getStore();
+  const apiKey =
+    override && override.provider === entry.provider
+      ? override.key
+      : envKeysAllowed()
+        ? provider.key()
+        : undefined;
+  if (!apiKey) throw new Error(`no API key for ${entry.provider}`);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -81,7 +116,7 @@ export async function callModel(entry, messages, options = {}) {
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${provider.key()}`,
+        Authorization: `Bearer ${apiKey}`,
         ...(entry.provider === 'openrouter'
           ? {
               'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
@@ -131,8 +166,15 @@ export async function runChain(messages, options = {}) {
       attempts.push({ model: entry.label, status: `fail:${status}` });
     }
   }
-  const anyKey = Object.values(PROVIDERS).some((p) => p.key());
-  const err = new Error(anyKey ? 'All models failed or are cooling down. Try again shortly.' : 'No AI API keys configured on the server.');
+  const anyKey =
+    Boolean(byok.getStore()) ||
+    (envKeysAllowed() && Object.values(PROVIDERS).some((p) => p.key()));
+  const err = new Error(
+    anyKey
+      ? 'All models failed or are cooling down. Try again shortly.'
+      : 'This feature uses your own free AI key. Add one in about a minute at /keys.html.'
+  );
   err.attempts = attempts;
+  err.needsKey = !anyKey;
   throw err;
 }

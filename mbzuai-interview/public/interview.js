@@ -42,14 +42,31 @@
   async function api(path, body, method) {
     const res = await fetch(`/api/${path}`, {
       method: method || (body ? 'POST' : 'GET'),
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem(LS.token) },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + localStorage.getItem(LS.token),
+        ...(window.Byok ? Byok.headers() : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401) { location.href = '/'; throw new Error('Signed out'); }
+    if (res.status === 401) {
+      if (data.needsKey) throw new Error(data.error + ' Open /keys.html to add one.');
+      location.href = '/';
+      throw new Error('Signed out');
+    }
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
   }
+
+  function paintKeyLink() {
+    const link = $('keyLink');
+    if (!link || !window.Byok) return;
+    const v = Byok.get();
+    link.style.color = v ? 'var(--ok)' : '';
+    link.title = v ? `Using your own AI key (${v.provider})` : 'Add your free AI key';
+  }
+  paintKeyLink();
 
   /* ---------- voice ---------- */
   let recog = null, recognizing = false, answerStartTs = 0, clockTimer = null, totalTimer = null;
@@ -552,7 +569,6 @@
     if (!token) { location.href = '/'; return; }
     try {
       const me = await api('auth/me');
-      if (me.role !== 'owner') { location.href = '/'; return; }
       $('whoami').textContent = me.username;
       const cfg = await api('config').catch(() => ({ dailyLimit: 15 }));
       usage.limit = cfg.dailyLimit || 15;

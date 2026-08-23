@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add your free AI key · MomoLearn AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0b0d12; --panel: #12151c; --border: #232838;
+      --text: #e8eaf0; --muted: #8a91a5; --accent: #7c6cff; --ok: #34d399; --bad: #f87171;
+    }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      display: flex; justify-content: center; padding: 28px 16px 60px;
+    }
+    .wrap { width: min(720px, 100%); }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+    header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header a.back {
+      margin-left: auto; color: var(--muted); font-size: 13px; text-decoration: none;
+      border: 1px solid var(--border); padding: 7px 12px; border-radius: 10px;
+    }
+    header a.back:hover { color: var(--text); border-color: var(--accent); }
+    .sub { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 6px 0 26px; }
+    .step { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 12px; }
+    .step .n {
+      background: rgba(124,108,255,.15); color: #cdc9ff; border: 1px solid rgba(124,108,255,.5);
+      width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0; transform: translateY(2px);
+    }
+    .step h2 { font-size: 15.5px; font-weight: 600; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .card .top { display: flex; align-items: center; gap: 8px; }
+    .card h3 { font-size: 14px; font-weight: 600; }
+    .card p { font-size: 12.5px; color: var(--muted); line-height: 1.5; flex: 1; }
+    .tag {
+      font-size: 10.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+      color: var(--ok); border: 1px solid rgba(52,211,153,.45); border-radius: 999px; padding: 2px 8px;
+    }
+    .tag.rec { color: #cdc9ff; border-color: rgba(124,108,255,.55); }
+    .card a {
+      margin-top: 4px; display: inline-flex; align-items: center; gap: 6px;
+      color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none;
+      border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; justify-content: center;
+    }
+    .card a:hover { border-color: var(--accent); background: rgba(124,108,255,.08); }
+    .card a svg { width: 13px; height: 13px; }
+    form.keyform {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    select, input[type="password"], input[type="text"] {
+      background: #0b0d12; border: 1px solid var(--border); color: var(--text);
+      border-radius: 10px; padding: 12px 14px; font-size: 14px; outline: none; width: 100%;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      background: var(--accent); border: none; color: white; font-weight: 600;
+      padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 14px;
+    }
+    button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    button.ghost:hover { color: var(--text); border-color: var(--accent); }
+    button:disabled { opacity: .5; cursor: default; }
+    .status { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .status.ok { color: var(--ok); }
+    .status.bad { color: var(--bad); }
+    .saved {
+      display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.35);
+      border-radius: 14px; padding: 14px 16px; font-size: 13.5px;
+    }
+    .saved.show { display: flex; }
+    .saved code { color: var(--ok); font-family: ui-monospace, Consolas, monospace; }
+    .note {
+      margin-top: 28px; border: 1px dashed var(--border); border-radius: 14px;
+      padding: 14px 16px; font-size: 12.5px; color: var(--muted); line-height: 1.6;
+    }
+    .note b { color: var(--text); }
+    footer { margin-top: 30px; text-align: center; font-size: 12.5px; color: var(--muted); }
+    footer a { color: var(--muted); }
+    @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="dot"></span>
+      <h1>Add your free AI key</h1>
+      <a class="back" href="/">Back to MomoLearn</a>
+    </header>
+    <p class="sub">
+      MomoLearn runs on your own free AI key &mdash; pick a provider below, create a key in
+      about a minute, then paste it in step 2. Most providers are completely free.
+    </p>
+
+    <div class="step"><span class="n">1</span><h2>Pick a provider and get a free key</h2></div>
+    <div class="cards">
+      <div class="card">
+        <div class="top"><h3>Google AI Studio</h3><span class="tag rec">Recommended</span></div>
+        <p>Free Gemini keys with a generous daily limit. Sign in with any Google account, click "Create API key", copy it.</p>
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Open AI Studio
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <div class="card">
+        <div class="top"><h3>Groq</h3><span class="tag">Free</span></div>
+        <p>Very fast free models. Sign up, open API Keys, "Create API Key", copy it.</p>
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Open Groq
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <div class="card">
+        <div class="top"><h3>OpenRouter</h3><span class="tag">Free models</span></div>
+        <p>One key, many free models. Sign in, go to Keys, "Create Key". Pick ":free" models to stay free.</p>
+        <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">Open OpenRouter
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <div class="card">
+        <div class="top"><h3>Cerebras</h3><span class="tag">Free tier</span></div>
+        <p>Fast inference with a free tier. Create an account, then generate an API key.</p>
+        <a href="https://cloud.cerebras.ai" target="_blank" rel="noopener">Open Cerebras
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <div class="card">
+        <div class="top"><h3>GitHub Models</h3><span class="tag">With GitHub</span></div>
+        <p>Free for GitHub accounts. Create a fine-grained token and allow the "Models" permission.</p>
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Open GitHub
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <div class="card">
+        <div class="top"><h3>Mistral</h3><span class="tag">Free tier</span></div>
+        <p>La Plateforme has a free tier. Sign in, open API Keys, "Create new key".</p>
+        <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">Open Mistral
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="step"><span class="n">2</span><h2>Paste your key here</h2></div>
+    <form class="keyform" id="keyForm" autocomplete="off">
+      <select id="provider" aria-label="Provider">
+        <option value="gemini">Google AI Studio (Gemini)</option>
+        <option value="groq">Groq</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="cerebras">Cerebras</option>
+        <option value="github-models">GitHub Models</option>
+        <option value="mistral">Mistral</option>
+        <option value="openai">OpenAI (paid)</option>
+      </select>
+      <input type="password" id="keyInput" placeholder="Paste your API key (starts with AIza…, gsk_…, sk-or-…)" />
+      <div class="row">
+        <button type="submit">Save key</button>
+        <button type="button" class="ghost" id="revealBtn">Show</button>
+        <button type="button" class="ghost" id="removeBtn">Remove saved key</button>
+      </div>
+      <div class="status" id="saveStatus"></div>
+    </form>
+    <div class="saved" id="savedBox">
+      <span>Saved:</span><code id="savedText"></code>
+      <button type="button" class="ghost" id="testBtn" style="margin-left:auto;">Test it</button>
+    </div>
+    <div class="status" id="testStatus" style="margin-top:10px;"></div>
+
+    <div class="note">
+      <b>Your key stays yours.</b> It is stored only in this browser (localStorage) and sent only
+      to the MomoLearn server to call the model on your behalf. It is never logged, shared, or
+      committed anywhere. Remove it at any time with the button above.
+    </div>
+
+    <footer>MomoLearn AI · <a href="/">open the app</a> · calm tools for serious study</footer>
+  </div>
+
+  <script src="/byok.js"></script>
+  <script>
+    var providerEl = document.getElementById('provider');
+    var keyInput = document.getElementById('keyInput');
+    var saveStatus = document.getElementById('saveStatus');
+    var testStatus = document.getElementById('testStatus');
+    var savedBox = document.getElementById('savedBox');
+    var savedText = document.getElementById('savedText');
+
+    function paint() {
+      var v = Byok.get();
+      if (v) {
+        savedBox.classList.add('show');
+        savedText.textContent = v.provider + ' · ' + v.key.slice(0, 4) + '\u2026' + v.key.slice(-4);
+        saveStatus.textContent = '';
+      } else {
+        savedBox.classList.remove('show');
+      }
+    }
+    paint();
+    if (Byok.get()) providerEl.value = Byok.get().provider;
+
+    document.getElementById('keyForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var k = keyInput.value.trim();
+      if (!k) { saveStatus.className = 'status bad'; saveStatus.textContent = 'Paste a key first.'; return; }
+      if (k.length < 16) { saveStatus.className = 'status bad'; saveStatus.textContent = 'That looks too short to be a real key — copy the whole thing from the provider page.'; return; }
+      Byok.set(providerEl.value, k);
+      keyInput.value = '';
+      saveStatus.className = 'status ok';
+      saveStatus.textContent = 'Saved in this browser.';
+      paint();
+    });
+
+    document.getElementById('removeBtn').addEventListener('click', function () {
+      Byok.clear();
+      saveStatus.className = 'status';
+      saveStatus.textContent = 'Key removed.';
+      testStatus.textContent = '';
+      paint();
+    });
+
+    document.getElementById('revealBtn').addEventListener('click', function () {
+      keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+      this.textContent = keyInput.type === 'password' ? 'Show' : 'Hide';
+    });
+
+    document.getElementById('testBtn').addEventListener('click', async function () {
+      var btn = this;
+      btn.disabled = true;
+      testStatus.className = 'status';
+      testStatus.textContent = 'Testing\u2026 asking the model to say hi.';
+      try {
+        var res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, Byok.headers()),
+          body: JSON.stringify({ messages: [{ role: 'user', content: 'Reply with exactly: OK' }] }),
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (res.ok) {
+          testStatus.className = 'status ok';
+          testStatus.textContent = 'Working! Answered by ' + data.model + '.';
+        } else {
+          testStatus.className = 'status bad';
+          testStatus.textContent = 'Failed: ' + (data.error || 'HTTP ' + res.status) + ' — double-check the provider matches where you created the key.';
+        }
+      } catch (e) {
+        testStatus.className = 'status bad';
+        testStatus.textContent = 'Network error — is the server running?';
+      }
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>

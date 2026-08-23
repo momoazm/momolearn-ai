@@ -499,11 +499,14 @@ function renderMockIntro() {
             for (let bi = 0; bi < batchCount; bi++) {
               btn.textContent = `Creating your unique test… (${bi + 1}/${batchCount})`;
               const r = await fetch(`/api/mbzuai/full-test/${bi}?avoid=${encodeURIComponent(avoid.slice(0, 8).join('~~'))}`, {
-                headers: { Authorization: `Bearer ${s2.token}` },
+                headers: { Authorization: `Bearer ${s2.token}`, ...(window.Byok ? Byok.headers() : {}) },
               });
               const data = await r.json().catch(() => ({ ok: false, error: 'bad response' }));
               if (!r.ok || !data.ok) {
-                status.textContent = `${data.genre || `Batch ${bi + 1}`}: unavailable this round.`;
+                status.textContent = data.needsKey
+                  ? 'AI test creation needs your own free API key - open keys.html to add one.'
+                  : `${data.genre || `Batch ${bi + 1}`}: unavailable this round.`;
+                if (data.needsKey) break;
                 continue;
               }
               let added = 0;
@@ -1513,7 +1516,7 @@ async function sendTutor(preset, { input, log }) {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(window.Byok ? Byok.headers() : {}) },
       body: JSON.stringify({
         messages: [
           { role: 'system', content: contextLines.join('\n\n') },
@@ -1522,7 +1525,9 @@ async function sendTutor(preset, { input, log }) {
       }),
     });
     const data = await res.json();
-    pending.textContent = res.ok ? data.content : (data.error || 'The tutor is unavailable right now.');
+    pending.textContent = res.ok
+      ? data.content
+      : (data.error || 'The tutor is unavailable right now.') + ((res.status === 400 || res.status === 401) && /key/i.test(data.error || '') ? ' Open keys.html to add one.' : '');
   } catch {
     pending.textContent = 'Network error — check that the server is running.';
   }

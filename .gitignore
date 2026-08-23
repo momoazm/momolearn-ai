@@ -6,3 +6,6 @@ node_modules/
 
 .playwright-cli/
 data/
+
+probe.yml
+!.env.example
