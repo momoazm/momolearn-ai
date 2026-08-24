@@ -9,7 +9,6 @@ import {
 } from './engine.js';
 
 const root = document.getElementById('mbzuaiView');
-const chatApp = document.querySelector('.app');
 let bank = null;
 let bankById = {};
 let topics = [];
@@ -150,7 +149,6 @@ function stopTick() {
 }
 
 export function showMbzuai(on) {
-  chatApp.classList.toggle('hidden-app', on);
   root.hidden = !on;
   if (on) boot();
   else stopTick();
@@ -1534,13 +1532,8 @@ async function sendTutor(preset, { input, log }) {
   log.scrollTop = log.scrollHeight;
 }
 
-const tabButtons = document.querySelectorAll('.tabs .tab');
-tabButtons.forEach((b) =>
-  b.addEventListener('click', () => {
-    tabButtons.forEach((x) => x.classList.toggle('active', x === b));
-    showMbzuai(b.dataset.view === 'mbzuai');
-  }));
+window.addEventListener('momo-view', (e) => showMbzuai(e.detail.view === 'mbzuai'));
 
 if (new URLSearchParams(location.search).get('key')) {
-  document.querySelector('.tab[data-view="mbzuai"]')?.click();
+  window.switchTab?.('mbzuai');
 }

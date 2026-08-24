@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MomoLearn AI</title>
-  <link rel="stylesheet" href="/mbzuai/mbzuai.css" />
+    <title>MomoLearn AI</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+    <link rel="stylesheet" href="/mbzuai/mbzuai.css" />
+    <link rel="stylesheet" href="/igcse/igcse.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -88,6 +90,11 @@
   </style>
 </head>
 <body>
+  <nav class="tabs floating-tabs" aria-label="Sections">
+    <button class="tab" data-view="chat" type="button">Chat</button>
+    <button class="tab" data-view="igcse" type="button">IGCSE</button>
+    <button class="tab" data-view="mbzuai" type="button">MBZUAI Prep</button>
+  </nav>
   <div class="app">
     <header>
       <span class="dot"></span>
@@ -95,6 +102,7 @@
       <small id="chainInfo">loading models…</small>
       <nav class="tabs" aria-label="Sections">
         <button class="tab active" data-view="chat" type="button">Chat</button>
+        <button class="tab" data-view="igcse" type="button">IGCSE</button>
         <button class="tab" data-view="mbzuai" type="button">MBZUAI Prep</button>
       </nav>
       <a href="https://mbzuai-interview.vercel.app" target="_blank" rel="noopener" class="bell" title="MBZUAI Interview Coach (opens your account login)" style="text-decoration:none; font-size:12px; font-weight:600;">Interview</a>
@@ -113,11 +121,26 @@
     </form>
   </div>
 
+  <section id="igcseView" hidden></section>
   <section id="mbzuaiView" hidden></section>
 
   <script src="/notify.js"></script>
   <script src="/byok.js"></script>
+  <script>
+    window.switchTab = function (view) {
+      document.querySelector(`.tabs .tab[data-view="${view}"]`)?.click();
+    };
+    document.querySelectorAll('.tabs .tab').forEach((b) =>
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.tabs .tab').forEach((x) => x.classList.toggle('active', x === b));
+        const v = b.dataset.view;
+        document.body.classList.toggle('non-chat', v !== 'chat');
+        document.querySelector('.app').classList.toggle('hidden-app', v !== 'chat');
+        window.dispatchEvent(new CustomEvent('momo-view', { detail: { view: v } }));
+      }));
+  </script>
   <script type="module" src="/mbzuai/app.js"></script>
+  <script type="module" src="/igcse/app.js"></script>
   <script>
     const chat = document.getElementById('chat');
     const form = document.getElementById('form');

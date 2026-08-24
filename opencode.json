@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [
+      ".opencode/skills",
+      "~/.config/opencode/skills"
+    ]
+  },
+  "plugin": [
+    "opencode-fallback"
+  ],
+  "experimental": {
+    "autoContinue": true,
+    "compaction": {
+      "auto": true,
+      "tail_turns": 15
+    }
+  },
+  "permission": {
+    "bash": {
+      "node *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "git *": "allow"
+    }
+  }
+}

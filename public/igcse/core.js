@@ -51,8 +51,8 @@ const SERIES = [
 ];
 
 export const SESSIONS = [];
-for (const y of [2023, 2024, 2025]) for (const s of SERIES) SESSIONS.push({ id: `${y}-${s.id}`, year: y, ...s });
-for (const s of [SERIES[0], SERIES[1]]) SESSIONS.push({ id: `2026-${s.id}`, year: 2026, ...s });
+for (const y of [2023, 2024, 2025]) for (const s of SERIES) SESSIONS.push({ ...s, id: `${y}-${s.id}`, year: y });
+for (const s of [SERIES[0], SERIES[1]]) SESSIONS.push({ ...s, id: `2026-${s.id}`, year: 2026 });
 
 export const BANKS = { physics: PHYSICS, chemistry: CHEMISTRY, biology: BIOLOGY };
 
@@ -105,13 +105,14 @@ export function buildExam(subjectId, paperId, sessionId) {
   let totalMarks = 0;
   questions.forEach((q, i) => {
     q.num = i + 1;
-    totalMarks += q.marks != null ? q.marks : (q.parts || []).reduce((n, p) => n + p.marks, 0);
+    const partSum = Array.isArray(q.parts) ? q.parts.reduce((n, p) => n + p.marks, 0) : null;
+    totalMarks += q.marks ?? partSum ?? 1;
   });
 
   return {
     key: examKey(subjectId, paperId, sessionId),
     subject, paper, session,
-    title: `${subject.name} ${paper.short} · ${sessionLabel(session)} ${session.year}`,
+    title: `${subject.name} · ${paper.name} · ${sessionLabel(session)}`,
     questions,
     totalMarks,
   };

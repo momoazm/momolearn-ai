@@ -4,7 +4,11 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "health": "node scripts/health-check.cjs",
+    "fix-env": "node scripts/fix-environment.cjs",
+    "start-all": "node scripts/start-all.cjs",
+    "test:igcse": "node test/igcse-complete.spec.js"
   },
   "dependencies": {
     "@vercel/kv": "^3.0.0",
