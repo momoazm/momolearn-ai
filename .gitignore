@@ -9,3 +9,5 @@ data/
 
 probe.yml
 !.env.example
+dist/
+*.tsbuildinfo
