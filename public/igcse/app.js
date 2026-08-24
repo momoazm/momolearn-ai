@@ -73,6 +73,26 @@ function renderHome() {
         done ? h('span', { class: 'chip' }, `${done} exams attempted`) : null,
       ),
     ),
+    h('section', { class: 'quick-start' },
+      h('h2', {}, 'Quick start'),
+      h('p', { class: 'ig-muted' }, 'Jump directly to a specific subject, paper & session:'),
+      h('div', { class: 'quick-grid' },
+        SUBJECTS.flatMap((s) =>
+          PAPERS.map((p) => {
+            const latest = SESSIONS[SESSIONS.length - 1];
+            const exam = buildExam(s.id, p.id, latest.id);
+            return h('button', {
+              class: 'quick-btn',
+              onclick: () => start(buildExam(s.id, p.id, latest.id)),
+            },
+              h('span', { class: `ptag p-${p.id}` }, p.short.toUpperCase()),
+              h('strong', {}, `${s.name} ${p.short}`),
+              h('span', { class: 'ig-muted meta' }, `${latest.label} ${latest.year} · ${exam?.questions.length || 0} Q`),
+            );
+          }),
+        ),
+      ),
+    ),
     h('div', { class: 'cards3' },
       SUBJECTS.map((s) =>
         h('button', { class: 'card subject-card', onclick: () => go(s.id) },
@@ -141,15 +161,18 @@ function renderPaper(subjectId, paperId) {
       ? h('section', { class: 'year-group' },
           h('h2', {}, year),
           h('div', { class: 'session-grid' },
-            byYear[year].map((sess) =>
-              h('button', {
+            byYear[year].map((sess) => {
+              const exam = buildExam(s.id, p.id, sess.id);
+              return h('button', {
                 class: 'session-btn',
                 onclick: () => go(`${s.id}/${p.id}/${sess.id}`),
               },
                 h('strong', {}, `${sess.code} ${sess.year}`),
                 h('span', { class: 'ig-muted meta' }, sess.label),
+                exam && h('span', { class: 'chip meta-chip' }, `${exam.questions.length} Q · ${exam.totalMarks} marks · ${p.minutes} min`),
                 bestChip(`${s.id}|${p.id}|${sess.id}`),
-              )),
+              );
+            }),
           ))
       : null),
   );
