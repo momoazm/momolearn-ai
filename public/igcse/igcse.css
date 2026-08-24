@@ -215,3 +215,20 @@ details.ms-item.skipped summary::before { content: '– '; color: var(--muted); 
   .legend-row .chip:last-child { grid-column: 1 / -1; }
   #igcseView { padding: 18px 14px 70px; }
 }
+
+.toggle-all {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  margin-left: auto;
+}
+.toggle-all input { accent-color: var(--accent); }
+
+.questions-list {
+  display: flex; flex-direction: column; gap: 12px; margin-top: 12px;
+}
+.mcq-item .choices { grid-template-columns: repeat(2, 1fr); }
+.mcq-item .choice { padding: 10px 12px; font-size: 14px; }
+
+@media (max-width: 720px) {
+  .mcq-item .choices { grid-template-columns: 1fr; }
+}

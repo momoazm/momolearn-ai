@@ -205,15 +205,45 @@ function renderRunner() {
 
 function mcqBody(d) {
   let cur = 0;
+  let showAll = false;
   const wrap = h('div', { class: 'mcq-wrap' });
 
   const paint = () => {
+    if (showAll) {
+      wrap.replaceChildren(
+        h('div', { class: 'q-progress' },
+          h('span', {}, `All ${d.questions.length} questions — scroll to review`),
+          h('label', { class: 'toggle-all' },
+            h('input', { type: 'checkbox', checked: true, onchange: (e) => { showAll = e.target.checked; paint(); } }),
+            h('span', {}, ' Show one at a time'))),
+        h('div', { class: 'questions-list' },
+          d.questions.map((q, i) =>
+            h('div', { class: 'q-card mcq-item' },
+              h('div', { class: 'q-head' },
+                h('span', {}, `Question ${i + 1}`),
+                h('span', { class: 'topic-chip' }, q.topic)),
+              h('p', { class: 'q-text' }, q.q),
+              h('div', { class: 'choices' },
+                q.o.map((opt, j) =>
+                  h('button', {
+                    class: `choice${exam.answers[q.num] === j ? ' sel' : ''}`,
+                    onclick: () => { exam.answers[q.num] = j; paint(); },
+                  },
+                    h('b', {}, String.fromCharCode(65 + j)), ' ', opt)))))),
+        h('div', { class: 'runner-actions' },
+          h('button', { class: 'btn primary', onclick: () => finishExam(false) }, 'Submit & mark ✓')),
+      );
+      return;
+    }
     const q = d.questions[cur];
     const chosen = exam.answers[q.num];
     wrap.replaceChildren(
       h('div', { class: 'q-progress' },
         h('span', {}, `Question ${cur + 1} of ${d.questions.length}`),
-        h('span', { class: 'topic-chip' }, q.topic)),
+        h('span', { class: 'topic-chip' }, q.topic),
+        h('label', { class: 'toggle-all' },
+          h('input', { type: 'checkbox', onchange: (e) => { showAll = e.target.checked; paint(); } }),
+          h('span', {}, ' Show all questions'))),
       h('div', { class: 'q-card' },
         h('p', { class: 'q-text' }, q.q),
         h('div', { class: 'choices' },
@@ -286,9 +316,28 @@ function writtenBody(d) {
 
   wrap.append(
     h('div', { class: 'runner-actions center' },
-      h('button', { class: 'btn primary big-btn', onclick: () => finishExam(false) }, 'Finish & see report 📊')),
+      h('button', { class: 'btn primary big-btn', onclick: () => finishExam(false) }, 'Finish & see report 📊'),
+      h('button', { class: 'btn ghost', onclick: () => markAllQuestions(d) }, '✨ Mark all at end')),
   );
   return wrap;
+}
+
+async function markAllQuestions(d) {
+  const btns = document.querySelectorAll('.written-actions .btn.primary');
+  btns.forEach(b => b.disabled = true);
+  
+  for (const q of d.questions) {
+    const card = document.querySelector(`.q-card.written[data-q="${q.num}"]`);
+    if (!card) continue;
+    const btn = card.querySelector('.written-actions .btn.primary');
+    if (btn) {
+      btn.disabled = true;
+      await markWholeQuestion(q, card);
+      btn.disabled = false;
+    }
+  }
+  
+  btns.forEach(b => b.disabled = false);
 }
 
 function buildWrittenCard(q) {
