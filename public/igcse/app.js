@@ -55,6 +55,7 @@ export { showIgcse };
 
 function stopTimer() {
   if (timerId) { clearInterval(timerId); timerId = null; }
+  document.getElementById('float-timer')?.remove();
 }
 
 /* ---------- views ---------- */
@@ -68,10 +69,19 @@ function renderHome() {
       h('h1', {}, 'IGCSE Exam Hall'),
       h('p', {}, 'Cambridge-style practice papers · Physics 0625 · Chemistry 0620 · Biology 0610'),
       h('p', { class: 'ig-muted' }, 'Every paper comes from the 2023–2026 archive. P2 is auto-marked against its premade mark scheme; P4 & P6 are graded line-by-line by our AI examiner.'),
-      h('div', { class: 'hero-actions' },
-        h('button', { class: 'btn primary', onclick: () => start(randomExam()) }, '🎲 Surprise me — random exam'),
-        done ? h('span', { class: 'chip' }, `${done} exams attempted`) : null,
+      h('div', { class: 'picker-row' },
+        (() => {
+          const sSel = h('select', { 'aria-label': 'Subject' }, SUBJECTS.map((s) => h('option', { value: s.id }, `${s.emoji} ${s.name}`)));
+          const pSel = h('select', { 'aria-label': 'Paper' }, PAPERS.map((p) => h('option', { value: p.id }, p.name.replace(' — ', ' · '))));
+          const xSel = h('select', { 'aria-label': 'Session' }, [...SESSIONS].reverse().map((x) => h('option', { value: x.id }, `${x.code} ${x.year} · ${x.label}`)));
+          return [sSel, pSel, xSel, h('button', {
+            class: 'btn primary',
+            onclick: () => start(buildExam(sSel.value, pSel.value, xSel.value)),
+          }, '▶ Start this exact exam')];
+        })(),
+        h('button', { class: 'btn ghost', onclick: () => start(randomExam()) }, '🎲 Or go random'),
       ),
+      done ? h('div', { style: 'text-align:center;margin-top:12px;' }, h('span', { class: 'chip' }, `${done} exams attempted`)) : null,
     ),
     h('section', { class: 'quick-start' },
       h('h2', {}, 'Quick start'),
@@ -199,12 +209,20 @@ function openExam(subjectId, paperId, sessionId) {
   const msLeft = built.paper.minutes * 60_000;
   const deadline = Date.now() + msLeft;
   renderRunner();
+  root.append(h('div', { id: 'float-timer', class: 'exam-timer' }, fmtTime(msLeft)));
   timerId = setInterval(() => {
     const left = deadline - Date.now();
+    const txt = fmtTime(left);
+    const danger = left < 300_000;
     const tEl = document.getElementById('timer');
+    const fEl = document.getElementById('float-timer');
     if (tEl) {
-      tEl.textContent = fmtTime(left);
-      tEl.classList.toggle('danger', left < 300_000);
+      tEl.textContent = txt;
+      tEl.classList.toggle('danger', danger);
+    }
+    if (fEl) {
+      fEl.textContent = txt;
+      fEl.classList.toggle('danger', danger);
     }
     if (left <= 0) finishExam(true);
   }, 500);
@@ -227,68 +245,59 @@ function renderRunner() {
 /* ----- Paper 2 (premade MS, auto-marked) ----- */
 
 function mcqBody(d) {
-  let cur = 0;
-  let showAll = false;
   const wrap = h('div', { class: 'mcq-wrap' });
+  const counterEl = h('span', { style: 'font-weight:700;color:var(--text);' }, '');
+  const dots = [];
+  const total = d.questions.length;
 
-  const paint = () => {
-    if (showAll) {
-      wrap.replaceChildren(
-        h('div', { class: 'q-progress' },
-          h('span', {}, `All ${d.questions.length} questions — scroll to review`),
-          h('label', { class: 'toggle-all' },
-            h('input', { type: 'checkbox', checked: true, onchange: (e) => { showAll = e.target.checked; paint(); } }),
-            h('span', {}, ' Show one at a time'))),
-        h('div', { class: 'questions-list' },
-          d.questions.map((q, i) =>
-            h('div', { class: 'q-card mcq-item' },
-              h('div', { class: 'q-head' },
-                h('span', {}, `Question ${i + 1}`),
-                h('span', { class: 'topic-chip' }, q.topic)),
-              h('p', { class: 'q-text' }, q.q),
-              h('div', { class: 'choices' },
-                q.o.map((opt, j) =>
-                  h('button', {
-                    class: `choice${exam.answers[q.num] === j ? ' sel' : ''}`,
-                    onclick: () => { exam.answers[q.num] = j; paint(); },
-                  },
-                    h('b', {}, String.fromCharCode(65 + j)), ' ', opt)))))),
-        h('div', { class: 'runner-actions' },
-          h('button', { class: 'btn primary', onclick: () => finishExam(false) }, 'Submit & mark ✓')),
-      );
-      return;
-    }
-    const q = d.questions[cur];
-    const chosen = exam.answers[q.num];
-    wrap.replaceChildren(
-      h('div', { class: 'q-progress' },
-        h('span', {}, `Question ${cur + 1} of ${d.questions.length}`),
-        h('span', { class: 'topic-chip' }, q.topic),
-        h('label', { class: 'toggle-all' },
-          h('input', { type: 'checkbox', onchange: (e) => { showAll = e.target.checked; paint(); } }),
-          h('span', {}, ' Show all questions'))),
-      h('div', { class: 'q-card' },
-        h('p', { class: 'q-text' }, q.q),
-        h('div', { class: 'choices' },
-          q.o.map((opt, i) =>
-            h('button', {
-              class: `choice${chosen === i ? ' sel' : ''}`,
-              onclick: () => { exam.answers[q.num] = i; paint(); },
-            },
-              h('b', {}, String.fromCharCode(65 + i)), ' ', opt)))),
-      h('div', { class: 'nav-grid' },
-        d.questions.map((qq, i) =>
-          h('button', {
-            class: `nav-dot${i === cur ? ' cur' : ''}${exam.answers[qq.num] != null ? ' answered' : ''}`,
-            onclick: () => { cur = i; paint(); },
-          }, i + 1))),
-      h('div', { class: 'runner-actions' },
-        h('button', { class: 'btn ghost', disabled: cur === 0, onclick: () => { cur--; paint(); } }, '‹ Prev'),
-        h('button', { class: 'btn ghost', disabled: cur === d.questions.length - 1, onclick: () => { cur++; paint(); } }, 'Next ›'),
-        h('button', { class: 'btn primary', onclick: () => finishExam(false) }, 'Submit & mark ✓')),
-    );
+  const paintCounts = () => {
+    const done = Object.keys(exam.answers).length;
+    counterEl.textContent = `Answered ${done} / ${total}`;
+    dots.forEach((dot, i) => dot.classList.toggle('answered', exam.answers[d.questions[i].num] != null));
   };
-  paint();
+
+  const navGrid = h('div', { class: 'nav-grid wide' });
+  d.questions.forEach((q, i) => {
+    dots.push(h('button', {
+      class: 'nav-dot',
+      title: `Go to question ${i + 1}`,
+      onclick: () => document.getElementById(`mcq-q-${q.num}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    }, i + 1));
+  });
+  navGrid.append(...dots);
+
+  const list = h('div', { class: 'questions-list' });
+  d.questions.forEach((q, i) => {
+    const btns = q.o.map((opt, j) => h('button', {
+      class: `choice${exam.answers[q.num] === j ? ' sel' : ''}`,
+      onclick: () => {
+        exam.answers[q.num] = j;
+        btns.forEach((b, bi) => b.classList.toggle('sel', bi === j));
+        paintCounts();
+      },
+    }, h('b', {}, String.fromCharCode(65 + j)), ' ', opt));
+
+    list.append(
+      h('div', { class: 'q-card mcq-item', id: `mcq-q-${q.num}` },
+        h('div', { class: 'q-head' },
+          h('span', {}, `Question ${i + 1}`),
+          h('span', { class: 'topic-chip' }, q.topic)),
+        h('p', { class: 'q-text' }, q.q),
+        h('div', { class: 'choices' }, btns)),
+    );
+  });
+
+  wrap.append(
+    h('div', { class: 'q-progress' },
+      counterEl,
+      h('span', { class: 'topic-chip' }, `${d.totalMarks} marks · answer all, then Submit`),
+    ),
+    navGrid,
+    list,
+    h('div', { class: 'runner-actions center' },
+      h('button', { class: 'btn primary big-btn', onclick: () => finishExam(false) }, 'Submit & mark ✓')),
+  );
+  paintCounts();
   return wrap;
 }
 
