@@ -5,7 +5,6 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'url';
 import { classify, fullRoute, ROUTES, CATEGORIES } from './lib/router.js';
 import { registerMbzuaiRoutes } from './lib/mbzuai/routes.js';
-import { registerIgcseRoutes } from './lib/igcse/routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const app = express();
@@ -55,7 +54,6 @@ const AI_ROUTE_PREFIXES = [
   '/api/mbzuai/coach',
   '/api/mbzuai/classify-mistake',
   '/api/mbzuai/full-test',
-  '/api/igcse/mark',
 ];
 
 // Server env keys are honored ONLY outside Vercel (local dev).
@@ -210,13 +208,6 @@ app.get('/api/models', (req, res) => {
 });
 
 registerMbzuaiRoutes(app, {
-  callModel,
-  hasKey,
-  isCoolingDown,
-  markCooldown,
-});
-
-registerIgcseRoutes(app, {
   callModel,
   hasKey,
   isCoolingDown,

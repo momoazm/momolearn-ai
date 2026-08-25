@@ -6,7 +6,6 @@
     <title>MomoLearn AI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
     <link rel="stylesheet" href="/mbzuai/mbzuai.css" />
-    <link rel="stylesheet" href="/igcse/igcse.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -102,7 +101,6 @@
       <small id="chainInfo">loading models…</small>
       <nav class="tabs" aria-label="Sections">
         <button class="tab active" data-view="chat" type="button">Chat</button>
-        <button class="tab" data-view="igcse" type="button">IGCSE</button>
         <button class="tab" data-view="mbzuai" type="button">MBZUAI Prep</button>
       </nav>
       <a href="https://mbzuai-interview.vercel.app" target="_blank" rel="noopener" class="bell" title="MBZUAI Interview Coach (opens your account login)" style="text-decoration:none; font-size:12px; font-weight:600;">Interview</a>
@@ -121,7 +119,6 @@
     </form>
   </div>
 
-  <section id="igcseView" hidden></section>
   <section id="mbzuaiView" hidden></section>
 
   <script src="/notify.js"></script>
@@ -140,7 +137,6 @@
       }));
   </script>
   <script type="module" src="/mbzuai/app.js"></script>
-  <script type="module" src="/igcse/app.js"></script>
   <script>
     const chat = document.getElementById('chat');
     const form = document.getElementById('form');
