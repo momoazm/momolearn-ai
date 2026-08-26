@@ -1,15 +1,19 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config(); // .env
+dotenv.config({ path: '.env.local' }); // Vercel CLI local env (existing vars win)
 import express from 'express';
 import path from 'path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'url';
 import { classify, fullRoute, ROUTES, CATEGORIES } from './lib/router.js';
 import { registerMbzuaiRoutes } from './lib/mbzuai/routes.js';
+import { registerYear2LeaderboardRoutes } from './lib/year2/leaderboard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/ielts', express.static(path.join(__dirname, 'ielts-practice')));
 
 const PROVIDERS = {
   openrouter: {
@@ -213,6 +217,8 @@ registerMbzuaiRoutes(app, {
   isCoolingDown,
   markCooldown,
 });
+
+registerYear2LeaderboardRoutes(app);
 
 if (!process.env.VERCEL) {
   app.listen(process.env.PORT || 3000, () => {
