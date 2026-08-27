@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IELTS Practice Trainer - Free Offline Exam Simulator</title>
+<style>
+  :root{
+    --red:#C8102E; --navy:#12263f; --navy2:#1d3a5f; --bg:#f4f6fa; --card:#ffffff;
+    --line:#dde3ec; --muted:#5c6b82; --ok:#1a7f37; --bad:#c62828; --amber:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--navy)}
+  header.appbar{background:var(--navy);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header.appbar h1{font-size:18px;margin:0;font-weight:600}
+  header.appbar .tag{font-size:11px;background:var(--red);padding:3px 8px;border-radius:10px;font-weight:700;letter-spacing:.5px}
+  .spacer{flex:1}
+  .chip{background:#ffffff22;border:1px solid #ffffff44;padding:4px 12px;border-radius:14px;font-size:13px}
+  .chip.warn{background:#7a1c1c;border-color:#ff9a9a;color:#ffd7d7}
+  main{max-width:980px;margin:0 auto;padding:22px 16px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(18,38,63,.06)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .tile{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--red);border-radius:10px;padding:18px;cursor:pointer;transition:.15s}
+  .tile:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(18,38,63,.12)}
+  .tile h3{margin:0 0 6px;font-size:16px}
+  .tile p{margin:0;color:var(--muted);font-size:13px}
+  .btn{display:inline-block;background:var(--red);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-right:8px;margin-top:6px}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--navy);border:1px solid var(--line)}
+  .btn.ghost:hover{background:#eef1f7}
+  .btn.small{padding:6px 12px;font-size:12px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  h2.screen-title{margin-top:0}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700}
+  .qnum{color:var(--red);font-weight:700}
+  .qblock{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:8px}
+  .qblock.correct{border-color:var(--ok);background:#f0fff4}
+  .qblock.wrong{border-color:var(--bad);background:#fff5f5}
+  .opt-row{display:block;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:14px}
+  .opt-row:hover{background:#eef1f7}
+  input[type=text]{padding:8px 10px;border:1px solid var(--line);border-radius:6px;width:min(340px,100%);font-size:14px}
+  select{padding:8px;border:1px solid var(--line);border-radius:6px;font-size:14px}
+  textarea{width:100%;min-height:220px;padding:12px;border:1px solid var(--line);border-radius:8px;font-size:14px;line-height:1.55;resize:vertical}
+  .passage{white-space:pre-line;line-height:1.65;font-size:15px;background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:18px;max-height:52vh;overflow:auto}
+  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tab{padding:7px 14px;border:1px solid var(--line);background:#fff;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;font-weight:600}
+  .tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .cuecard{background:#fffbe8;border:2px dashed var(--amber);border-radius:10px;padding:16px;max-width:560px}
+  .cuecard h4{margin:0 0 8px}
+  .cuecard li{margin:4px 0}
+  .wordcount{float:right;font-size:12px;color:var(--muted)}
+  .wc-ok{color:var(--ok)!important;font-weight:700}
+  .audio-panel{position:sticky;top:0;z-index:5;background:var(--navy2);color:#fff;padding:12px 16px;border-radius:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .rec-dot{width:12px;height:12px;border-radius:50%;background:var(--bad);display:inline-block;animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  table.bands td,table.bands th{border:1px solid var(--line);padding:6px 10px;font-size:13px;text-align:left}
+  .hintbox{background:#eef4ff;border:1px solid #c7d7f5;border-radius:8px;padding:12px 14px;font-size:13px;color:#274a77}
+  .ex-line{background:#f3ecfb;border:1px solid #dcc6ef;color:#4a2367;border-radius:10px;padding:9px 13px;margin:8px 0;font-size:14px}
+  .log-ex{display:inline-block;background:#f3ecfb;color:#4a2367;border-radius:8px;padding:3px 10px;margin:2px 0}
+  .log-you{display:inline-block;background:#eafaf0;color:#1f5c33;border-radius:8px;padding:3px 10px;margin:2px 0}
+  .warnbox{background:#fff4f4;border:1px solid #f3c2c2;border-radius:8px;padding:12px 14px;font-size:13px;color:#8a2a2a}
+  details summary{cursor:pointer;font-weight:600;color:var(--navy2)}
+  .review-q{font-size:13px}
+  .mono{font-family:Consolas,monospace;font-size:12px}
+   footer{text-align:center;color:var(--muted);font-size:11px;margin-top:30px}
+   .hidden{display:none!important}
+   /* --- Spelling Lab --- */
+   .sp-wordbox{background:#fbfcfe;border:2px solid var(--navy2);border-radius:12px;padding:22px;text-align:center;margin-bottom:14px}
+   .sp-word{font-size:26px;font-weight:800;letter-spacing:.5px}
+   .sp-word b{color:var(--bad)}
+   .sp-yours{font-size:16px;color:var(--muted)}
+   .sp-yours b{color:var(--bad);text-decoration:underline}
+   .sp-input{font-size:20px!important;padding:12px 14px!important;width:min(420px,100%)!important;text-align:center;letter-spacing:1px}
+   .sp-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+   .verdict{font-size:15px;font-weight:700;margin-top:10px}
+   .verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+   .progbar{height:6px;background:#e2e7f0;border-radius:3px;overflow:hidden;margin-bottom:14px}
+   .progbar>div{height:100%;background:var(--red);transition:width .25s}
+   .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;text-align:center}
+   .statgrid .st{background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:10px}
+   .statgrid .st b{display:block;font-size:20px;color:var(--red)}
+   .statgrid .st span{font-size:11px;color:var(--muted)}
+   /* --- AI examiner --- */
+   .ai-badge{background:#123b2a;border:1px solid #2e7d54;color:#9fe8c4;padding:4px 12px;border-radius:14px;font-size:13px;font-weight:600}
+   .ai-partial{min-height:24px;background:#101c30;color:#7fd0a2;border-radius:8px;padding:8px 12px;font-size:14px;margin-top:10px;font-style:italic}
+   .thinking{animation:pulse 1s infinite}
+   .modebtn{background:var(--navy)!important}
+
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <h1>IELTS Practice Trainer</h1><span class="tag">FREE · OFFLINE</span>
+  <div class="spacer"></div>
+  <span id="hdrTimer" class="chip hidden"></span>
+  <span id="hdrSection" class="chip hidden"></span>
+  <button class="btn ghost small hidden" style="color:#fff;border-color:#ffffff55" onclick="openSettings()">⚙ Settings</button>
+  <button class="btn ghost small hidden" style="color:#fff;border-color:#ffffff55" onclick="goHome()">⌂ Home</button>
+</header>
+
+<main>
+
+<!-- ================= HOME ================= -->
+<section id="scr-home">
+  <div class="card" style="border-left:5px solid var(--red)">
+    <h2 style="margin-top:0">Full IELTS Academic Simulation</h2>
+    <p style="color:var(--muted)">Timed Listening → Reading → Writing → Speaking, with band-score estimates and answer review. Listening audio is spoken aloud by your browser. Speaking uses your microphone and records your answers for playback.</p>
+    <button class="btn" onclick="startFull()">▶ Start Full Exam (≈2h 45m)</button>
+  </div>
+  <div class="grid">
+    <div class="tile" onclick="startSection('listening')"><h3>🎧 Listening only</h3><p>4 parts · 40 questions · 30 min</p></div>
+    <div class="tile" onclick="startSection('reading')"><h3>📖 Reading only</h3><p>3 passages · 40 questions · 60 min</p></div>
+    <div class="tile" onclick="startSection('writing')"><h3>✍️ Writing only</h3><p>Task 1 chart + Task 2 essay · 60 min</p></div>
+    <div class="tile" onclick="startSection('speaking')"><h3>🎤 Speaking only</h3><p>Parts 1–3 · AI examiner or scripted · cue cards</p></div>
+    <div class="tile" onclick="renderSpellHome();show('scr-spell')"><h3>🔤 Spelling Lab</h3><p>Hardest words played aloud — type what you hear</p></div>
+    <div class="tile" onclick="renderMistakes();show('scr-mistakes')"><h3>🧯 Mistake Bank</h3><p id="mistakeCountTile">Re-drill questions you got wrong</p></div>
+    <div class="tile" onclick="initCalc();show('scr-calc')"><h3>🧮 Band Calculator</h3><p>Convert 4 skill scores into your overall band</p></div>
+    <div class="tile" onclick="show('scr-plan')"><h3>📅 Free Study Plan</h3><p>4-week plan using only free websites + this app</p></div>
+    <div class="tile" onclick="show('scr-guide')"><h3>📘 Exam Guide</h3><p>Format, timings, band descriptors, tips</p></div>
+    <div class="tile" onclick="renderHistory();show('scr-history')"><h3>📊 Results History</h3><p>Track progress across attempts</p></div>
+    <div class="tile" onclick="openSettings()"><h3>⚙ Settings</h3><p>Voice, speed, replay rules</p></div>
+  </div>
+  <footer>Unofficial practice tool. IELTS® is a registered trademark of British Council, IDP & Cambridge. No affiliation.</footer>
+</section>
+
+<!-- ================= GUIDE ================= -->
+<section id="scr-guide" class="hidden">
+  <h2 class="screen-title">📘 IELTS Academic — Format Guide</h2>
+  <div class="card"><table class="bands">
+    <tr><th>Paper</th><th>Time</th><th>Tasks</th><th>Notes</th></tr>
+    <tr><td>Listening</td><td>~30 min</td><td>4 parts / 40 Q</td><td>Audio plays once in the real exam. Part 1&3 dialogues, 2&4 monologues.</td></tr>
+    <tr><td>Reading</td><td>60 min</td><td>3 passages / 40 Q</td><td>No transfer time on computer. Academic = longer texts, TFNG/YNN G.</td></tr>
+    <tr><td>Writing</td><td>60 min</td><td>Task 1 (150w), Task 2 (250w)</td><td>Spend ~20 min on T1, ~40 on T2. Task 2 counts double.</td></tr>
+    <tr><td>Speaking</td><td>11–14 min</td><td>3 parts</td><td>P1 interview, P2 cue card (1 min prep + 2 min talk), P3 discussion.</td></tr>
+  </table></div>
+  <div class="card"><h3>How band scores work</h3>
+    <ul>
+      <li>Each skill 0–9. Overall = mean of the four skills, rounded to nearest half (0.25 rounds UP to .5; 0.75 rounds UP).</li>
+      <li>This app converts your raw L/R scores using official conversion tables and guides self-scoring for W/S using the real criteria.</li>
+      <li><b>Writing criteria:</b> Task Achievement/Response · Coherence & Cohesion · Lexical Resource · Grammatical Range & Accuracy (25% each).</li>
+      <li><b>Speaking criteria:</b> Fluency & Coherence · Lexical Resource · Grammatical Range & Accuracy · Pronunciation (25% each).</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Tips that actually move bands</h3>
+    <ul>
+      <li><b>Listening:</b> read questions ahead, predict word types (number/name/place). Watch for plural 's'. Spelling matters.</li>
+      <li><b>Reading:</b> never leave blanks. TFNG: "Not Given" means the passage simply doesn't say. Don't use outside knowledge.</li>
+      <li><b>Writing:</b> answer ALL parts of the prompt; clear overview in Task 1; 4-paragraph essays; count words.</li>
+      <li><b>Speaking:</b> never give one-word answers — extend with reason + example. Fluency beats perfection. This app's examiner speaks questions aloud, cuts you off at real limits (≈40s in Part 1, exactly 2 min in Part 2, ≈70s in Part 3), asks a follow-up after your cue card, and prompts you if an answer is too short.</li>
+    </ul>
+    <div class="hintbox"><b>About the listening audio:</b> this app reads scripts with your browser's built-in voices (works offline). It's a robot voice, not exam audio — treat it as timing/format practice. For real recorded audio, see the free links in the Study Plan.</div>
+  </div>
+  <button class="btn ghost" onclick="goHome()">← Back</button>
+</section>
+
+<!-- ================= STUDY PLAN ================= -->
+<section id="scr-plan" class="hidden">
+  <h2 class="screen-title">📅 4-Week Plan — 100% Free</h2>
+  <div class="card"><h3>Week 1 — Understand the test + baseline</h3>
+    <ul>
+      <li>Daily 30 min: <b>IELTS Liz</b> (ieltsliz.com) — read lessons for one skill per day.</li>
+      <li>Take this app's <b>full exam</b> as your diagnostic. Record scores in History.</li>
+      <li>Start an error log notebook (why each mistake happened).</li>
+      <li>British Council free mock tests: takeielts.britishcouncil.org → practice tests.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Week 2 — Skill drills</h3>
+    <ul>
+      <li><b>Listening daily:</b> BBC "6 Minute English" + this app's Listening (replay ON).</li>
+      <li><b>Reading daily:</b> one passage/day from this app or engnovate.com (free tests).</li>
+      <li><b>Writing:</b> study model answers on IELTS Liz; write 3 essays; score them free at Cambridge <b>Write & Improve</b> (writeandimprove.com).</li>
+      <li><b>Speaking daily:</b> record yourself answering this app's Part 1 topics; listen back; note fillers.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Week 3 — Timed conditions + feedback loop</h3>
+    <ul>
+      <li>Alternate days: one timed section (replay OFF, strict timers) + review errors.</li>
+      <li>Free AI checks: SmallTalk2Me free tier (speaking), engnovate essay checker (writing).</li>
+      <li>Second <b>full exam</b> this weekend. Compare with Week 1 in History.</li>
+      <li>Vocabulary: 10 topic words/day (Anki free desktop app).</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Week 4 — Peak + logistics</h3>
+    <ul>
+      <li>Two full mocks spaced 3 days apart. Review band descriptors (ielts.org).</li>
+      <li>Reread your error log — fix top 3 recurring mistakes only.</li>
+      <li>Day before: rest, skim models, prepare ID/logistics. No cramming.</li>
+    </ul>
+  </div>
+  <div class="card hintbox"><b>All free resources mentioned:</b> British Council practice tests · Road to IELTS free · IELTS Liz · IELTS Buddy · engnovate · IELTS Online Tests (ieltsonlinetests.com) · Write & Improve · BBC Learning English · Anki · TED Talks (Part 4-style lectures).</div>
+  <button class="btn ghost" onclick="goHome()">← Back</button>
+</section>
+
+<!-- ================= HISTORY ================= -->
+<section id="scr-history" class="hidden">
+  <h2 class="screen-title">📊 Results History</h2>
+  <div class="card" id="historyList"></div>
+  <button class="btn ghost" onclick="exportHistory()">⬇ Export JSON</button>
+  <button class="btn ghost" style="color:var(--bad)" onclick="clearHistory()">Clear all</button>
+  <button class="btn ghost" onclick="goHome()">← Back</button>
+</section>
+
+<!-- ================= SPELLING LAB SETUP ================= -->
+<section id="scr-spell" class="hidden">
+  <h2 class="screen-title">🔤 Spelling Lab</h2>
+  <div class="hintbox" style="margin-bottom:14px">A word is <b>played aloud</b> (plus a sentence for context). Type its spelling and press Enter. In the real Listening test <b>spelling counts</b> — one wrong letter = zero marks. Your hardest words come back more often.</div>
+  <div class="card"><h3>Your stats</h3><div class="statgrid" id="spellStats"></div>
+    <div id="spellHardest" style="margin-top:12px"></div>
+  </div>
+  <div class="card"><h3>Choose a drill</h3><p style="color:var(--muted);font-size:13px">Each drill = 10 words (or fewer if the pool is small).</p>
+    <button class="btn" onclick="startSpellDrill('hard')">🔥 My Hardest 10</button>
+    <button class="btn ghost" onclick="startSpellDrill('mixed')">🎲 Mixed 10</button>
+    <button class="btn ghost" onclick="startSpellDrill('trap')">✍️ Double-letter traps</button>
+    <button class="btn ghost" onclick="startSpellDrill('academic')">🎓 Academic vocabulary</button>
+    <button class="btn ghost" onclick="startSpellDrill('everyday')">🧾 Everyday words</button>
+    <button class="btn ghost" onclick="startSpellDrill('names')">🗣 Names spelled out (Part-1 style)</button>
+    <button class="btn ghost" onclick="startSpellDrill('numbers')">🔢 Numbers, prices & dates</button>
+  </div>
+  <button class="btn ghost" onclick="goHome()">← Back</button>
+</section>
+
+<!-- ================= SPELLING DRILL RUN ================= -->
+<section id="scr-spellrun" class="hidden">
+  <h2 class="screen-title" id="spTitle">Spelling drill</h2>
+  <div class="progbar"><div id="spProg" style="width:0%"></div></div>
+  <div class="card">
+    <div style="color:var(--muted);font-size:13px;margin-bottom:8px">Question <b id="spNum"></b> · type what you hear <span id="spHintCount" style="float:right"></span></div>
+    <div class="sp-wordbox" id="spBox"></div>
+    <input type="text" id="spInput" class="sp-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type the word…" onkeydown="if(event.key==='Enter')spellCheck()">
+    <div class="sp-btns">
+      <span id="spAudioBtns">
+        <button class="btn small" onclick="spellPlay()">🔊 Play again</button>
+        <button class="btn small ghost" onclick="spellPlay(true)">🐢 Slowly</button>
+        <button class="btn small ghost" onclick="spellHint()">💡 Hint</button>
+        <button class="btn small ghost" onclick="spellSkip()">Skip →</button>
+      </span>
+      <button class="btn small hidden" id="spCheckBtn" onclick="spellCheck()">Check (Enter)</button>
+      <button class="btn small modebtn hidden" id="spNextBtn" onclick="spellNext()">Next (Enter)</button>
+    </div>
+    <div id="spVerdict"></div>
+  </div>
+  <button class="btn ghost" onclick="if(confirm('End this drill?'))show('scr-spell')">Quit drill</button>
+</section>
+
+<!-- ================= MISTAKE BANK ================= -->
+<section id="scr-mistakes" class="hidden">
+  <h2 class="screen-title">🧯 Mistake Bank</h2>
+  <div class="hintbox" style="margin-bottom:14px">Every Listening/Reading question you get wrong is saved here automatically. Re-drill until it's gone — a correct answer removes it from the bank.</div>
+  <div class="card" id="mistakeList"></div>
+  <div id="mistakeDrill"></div>
+  <button class="btn" id="mistakeDrillBtn" onclick="drillMistakes()" style="background:var(--navy)"></button>
+  <button class="btn ghost" style="color:var(--bad)" onclick="if(confirm('Empty the mistake bank?')){save('ielts_mistakes',{});renderMistakes();}">Clear all</button>
+  <button class="btn ghost" onclick="goHome()">← Back</button>
+</section>
+
+<!-- ================= BAND CALCULATOR ================= -->
+<section id="scr-calc" class="hidden">
+  <h2 class="screen-title">🧮 Overall Band Calculator</h2>
+  <div class="card">
+    <p style="color:var(--muted)">Enter your four skill bands (half bands allowed). Leave one out if you don't know it yet.</p>
+    <div class="grid" id="calcInputs"></div>
+    <p style="font-size:18px;margin-top:16px">Overall band: <b id="calcOut" style="color:var(--red);font-size:26px">–</b> <span id="calcNote" style="font-size:12px;color:var(--muted)"></span></p>
+    <div class="hintbox" style="margin-top:10px">Official rounding: the mean of the four skills is rounded to the nearest half — a mean ending in .25 rounds <b>up</b> to .5, and .75 rounds <b>up</b> to the next whole band.</div>
+  </div>
+  <button class="btn ghost" onclick="goHome()">← Back</button>
+</section>
+
+<!-- ================= PRE-SECTION INSTRUCTIONS ================= -->
+<section id="scr-intro" class="hidden">
+  <h2 class="screen-title" id="introTitle"></h2>
+  <div class="card" id="introBody"></div>
+  <button class="btn" id="introBtn" onclick="beginSection()">Start</button>
+  <button class="btn ghost" onclick="goHome()">Cancel</button>
+</section>
+
+<!-- ================= LISTENING ================= -->
+<section id="scr-listening" class="hidden">
+  <div class="audio-panel">
+    🔊 <b id="lpLabel">Part 1</b>
+    <button class="btn small" id="playBtn" onclick="Speaker.toggle()">▶ Play audio</button>
+    <select id="voiceSel" style="max-width:230px"></select>
+    <label style="font-size:13px">Speed
+      <select id="rateSel" onchange="Speaker.setRate(this.value)">
+        <option value="0.75">0.75x</option><option value="0.85">0.85x</option>
+        <option value="1" selected>1x</option><option value="1.15">1.15x</option>
+      </select></label>
+    <span id="ttsNote" style="font-size:12px;opacity:.85"></span>
+  </div>
+  <div id="listeningParts"></div>
+  <button class="btn" onclick="submitSection('listening')">Submit Listening</button>
+  <button class="btn ghost" onclick="if(confirm('Reset all listening answers?'))startSection('listening',true)">Restart</button>
+</section>
+
+<!-- ================= READING ================= -->
+<section id="scr-reading" class="hidden">
+  <div class="tabs" id="readTabs"></div>
+  <div id="readBody"></div>
+  <button class="btn" onclick="submitSection('reading')">Submit Reading</button>
+  <button class="btn ghost" onclick="if(confirm('Reset all reading answers?'))startSection('reading',true)">Restart</button>
+</section>
+
+<!-- ================= WRITING ================= -->
+<section id="scr-writing" class="hidden">
+  <div class="hintbox" style="margin-bottom:14px">Suggested split: <b>20 min Task 1</b> · <b>40 min Task 2</b>. Keep writing — the clock above is running.</div>
+  <div class="card">
+    <h3>Task 1 <span class="wordcount" id="wc1"></span></h3>
+    <p id="t1prompt"></p>
+    <div id="chartHolder"></div>
+    <textarea id="ta1" placeholder="Write at least 150 words..." oninput="updateWC()"></textarea>
+  </div>
+  <div class="card">
+    <h3>Task 2 <span class="wordcount" id="wc2"></span></h3>
+    <p id="t2prompt"></p>
+    <textarea id="ta2" placeholder="Write at least 250 words..." oninput="updateWC()"></textarea>
+  </div>
+  <button class="btn" onclick="submitSection('writing')">Submit Writing</button>
+  <button class="btn ghost" onclick="if(confirm('Reset both essays?'))startSection('writing',true)">Restart</button>
+</section>
+
+<!-- ================= SPEAKING ================= -->
+<section id="scr-speaking" class="hidden">
+  <div class="audio-panel" style="background:#4a1d5e">🧑‍🏫 <b id="speakPanelTitle">Examiner simulation</b>
+    <span id="aiBadge" class="ai-badge hidden">🤖 AI EXAMINER</span>
+    <span id="aiModelTag" style="font-size:12px;opacity:.85"></span>
+    <span style="font-size:12px;opacity:.85" id="speakPanelSub">questions spoken aloud · answers recorded · long answers interrupted</span>
+  </div>
+  <!-- classic-mode controls -->
+  <div class="card" id="classicCard">
+    <div id="speakStep"></div>
+    <div style="margin-top:14px">
+      <button class="btn hidden" id="recBtn" onclick="toggleRec()">🎙 Answer now</button>
+      <button class="btn ghost" id="nextStepBtn" onclick="nextSpeakStep()" disabled>Continue →</button>
+      <span id="recStatus" style="margin-left:8px;font-size:13px"></span>
+      <div id="recPlayback" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <!-- ai-mode controls -->
+  <div class="card hidden" id="aiCard">
+    <div id="aiStage" style="color:var(--red);font-weight:700;font-size:12px;letter-spacing:1px"></div>
+    <div id="aiLastQ" style="margin-top:6px"></div>
+    <div class="ai-partial" id="aiPartial">🎙 mic idle — your words will appear here as you speak</div>
+    <div style="margin-top:12px">
+      <button class="btn hidden" id="aiStopBtn" onclick="aiManualStop()">■ I'm done</button>
+      <button class="btn ghost hidden" id="aiSkipBtn" onclick="aiSkipTurn()">Skip question →</button>
+      <button class="btn modebtn hidden" id="aiNextBtn" onclick="aiContinue()">Continue →</button>
+      <span id="aiStatus" style="margin-left:8px;font-size:13px"></span>
+    </div>
+    <div id="aiTypeWrap" class="hidden" style="margin-top:10px">
+      <textarea id="aiTypeBox" placeholder="Speech recognition unavailable here — type your answer and press Send (the AI examiner still talks with you)." style="min-height:80px"></textarea>
+      <button class="btn small" onclick="aiSendTyped()">Send</button>
+    </div>
+    <div id="recPlaybackAI" style="margin-top:10px"></div>
+    <div class="hintbox hidden" id="srWarn" style="margin-top:10px"></div>
+  </div>
+  <details class="card"><summary>📜 Examiner transcript (live)</summary><div id="exLog" style="line-height:1.8"></div></details>
+  <div class="warnbox hidden" id="micWarn">Microphone unavailable — you can still practise aloud and continue. (Tip: browsers require mic permission; recordings are never uploaded anywhere.)</div>
+  <button class="btn ghost" onclick="if(confirm('Quit speaking test?'))goHome()">Quit</button>
+</section>
+
+<!-- ================= RESULTS ================= -->
+<section id="scr-results" class="hidden">
+  <h2 class="screen-title">🏁 Results</h2>
+  <div class="card" id="resSummary"></div>
+  <div class="card" id="rubricBox"></div>
+  <div class="card" id="resReview"></div>
+  <button class="btn" id="nextSectionBtn" onclick=""></button>
+  <button class="btn ghost" onclick="goHome()">Home</button>
+</section>
+
+<!-- ================= INTERSTITIAL ================= -->
+<section id="scr-inter" class="hidden">
+  <div class="card" style="text-align:center">
+    <h2 id="interTitle"></h2><p id="interSub" style="color:var(--muted)"></p>
+    <button class="btn" id="interBtn"></button>
+  </div>
+</section>
+
+</main>
+
+<!-- SETTINGS MODAL -->
+<div id="modal" class="hidden" style="position:fixed;inset:0;background:#00000066;display:flex;align-items:center;justify-content:center;z-index:99">
+  <div class="card" style="width:min(430px,92vw)">
+    <h3 style="margin-top:0">⚙ Settings</h3>
+    <p><label>Voice<br><select id="setVoice" style="width:100%"></select></label></p>
+    <p><label>Default speech rate<br>
+      <select id="setRate" style="width:100%">
+        <option value="0.75">Slow (0.75x)</option><option value="0.85">Relaxed (0.85x)</option>
+        <option value="1">Normal (1x)</option><option value="1.15">Fast (1.15x)</option>
+      </select></label></p>
+    <p><label><input type="checkbox" id="setReplay" checked> Allow replaying listening audio (real exam plays once)</label></p>
+    <p><label><input type="checkbox" id="setStrict" checked> Strict examiner — interrupts long answers, prompts short ones (recommended)</label></p>
+    <p><label><input type="checkbox" id="setAuto" checked> Auto-start next section timer immediately</label></p>
+    <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+    <h3 style="margin:0 0 6px">🤖 AI Examiner</h3>
+    <p><label>Mode<br><select id="setAiMode" style="width:100%">
+      <option value="proxy">Same-origin proxy (/api/chat) — use when opened via http://localhost:3000/ielts/</option>
+      <option value="direct">Direct to provider — bring your own key (works from file://)</option>
+    </select></label></p>
+    <div id="directFields">
+      <p><label>Provider<br><select id="setAiProvider" style="width:100%">
+        <option value="groq">Groq (free, fastest)</option><option value="gemini">Gemini (free tier)</option>
+        <option value="openrouter">OpenRouter (free models)</option><option value="mistral">Mistral</option>
+        <option value="cerebras">Cerebras</option><option value="github-models">GitHub Models</option>
+        <option value="openai">OpenAI</option>
+      </select></label></p>
+      <p><label>Model<br><input type="text" id="setAiModel" placeholder="e.g. llama-3.3-70b-versatile" style="width:100%"></label></p>
+      <p><label>API key (stays in this browser)<br><input type="password" id="setAiKey" placeholder="paste key…" style="width:100%"></label></p>
+    </div>
+    <p><button class="btn small ghost" onclick="testAI()">🔌 Test AI connection</button> <span id="aiTestOut" style="font-size:12px"></span></p>
+    <button class="btn" onclick="saveSettings()">Save</button>
+    <button class="btn ghost" onclick="closeSettings()">Cancel</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   HELPERS
+============================================================ */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+function fmt(sec){sec=Math.max(0,Math.floor(sec));const m=Math.floor(sec/60),s=sec%60;return m+":"+String(s).padStart(2,"0");}
+
+let ACTIVE_TIMERS=[];
+function clearTimers(){ACTIVE_TIMERS.forEach(clearInterval);ACTIVE_TIMERS=[];$("hdrTimer").classList.add("hidden");}
+function startTimer(seconds,onEnd,label){
+  let t=seconds;
+  const el=$("hdrTimer");el.classList.remove("hidden");
+  const tick=()=>{
+    el.textContent=(label?label+" ":"")+fmt(t);
+    el.classList.toggle("warn",t<=300&&t>60);
+    if(t<=60){el.style.background="#7a1c1c";}
+    if(t<=0){clearInterval(iv);onEnd&&onEnd();}
+    t--;
+  };
+  tick();
+  const iv=setInterval(tick,1000);
+  ACTIVE_TIMERS.push(iv);
+}
+
+/* ============================================================
+   CONTENT — LISTENING
+============================================================ */
+const LISTENING={
+ parts:[
+ {
+  title:"Part 1 — Sports centre membership",
+  script:`Good morning, Riverside Sports Centre. This is Anna speaking. How can I help you today?
+Hello. I'd like to find out about joining the gym. Could you tell me what memberships are available?
+Of course. We have three options: a monthly pass at forty pounds, a six-month pass, and an annual membership. Most people go for the annual one because it works out much cheaper — just two hundred and eighty pounds for the full year.
+The annual sounds best for me then. Is there anything else to pay on top of that?
+Yes, there's a one-off joining fee of thirty pounds. That covers your first induction session with one of our instructors.
+I see. And would I be able to try things out before committing to a whole year?
+Certainly. Every new member gets a free trial period of ten days. You can use the gym, the pool and all the classes during that time.
+That's useful. What do I need to bring if I want to sign up?
+Just two documents: some photo identification, such as a passport or driving licence, and proof of address — a recent utility bill is ideal.
+No problem. I'm keen on swimming as well as the gym. When is the pool open?
+Every day from half past six in the morning until ten at night. Just be aware that the lanes are reserved for club training between seven and eight in the evening.
+Fine, I'd avoid that anyway. Do fitness classes cost anything extra?
+Studio classes such as yoga or spin are four pounds per session for members. You can book those through our app.
+Okay. I usually drive to places like this. What about parking?
+There's a car park behind the main building, and it's free for members for up to three hours. After that we charge by the hour.
+Good to know. A friend of mine recommended personal training as well.
+We have three personal trainers here. For someone starting out, I'd suggest Marcus — he specialises in beginners, though he's popular, so you normally need to book about two weeks ahead.
+I'll remember that. One last question: I finish work quite late. When does reception close?
+On weekdays it's open until nine o'clock, and at weekends until seven.
+Perfect. Thanks very much, Anna.
+You're welcome. Hope to see you soon!`,
+  questions:[
+   {id:"L1",type:"fill",q:"Which type of membership does the caller choose?",ans:["annual"]},
+   {id:"L2",type:"fill",q:"How much is the joining fee? (£)",ans:["30","thirty"]},
+   {id:"L3",type:"fill",q:"The free trial lasts how many days?",ans:["10","ten"]},
+   {id:"L4",type:"fill",q:"Bring a recent utility ______ as proof of address.",ans:["bill"]},
+   {id:"L5",type:"fill",q:"The pool opens at ______ in the morning.",ans:["630","6.30","6:30","halfpastsix","sixthirty"]},
+   {id:"L6",type:"fill",q:"Each studio class costs £______ for members.",ans:["4","four"]},
+   {id:"L7",type:"fill",q:"Parking is free for up to ______ hours.",ans:["3","three"]},
+   {id:"L8",type:"fill",q:"Which personal trainer should beginners ask for?",ans:["marcus"]},
+   {id:"L9",type:"fill",q:"Reception closes at ______ p.m. on weekdays.",ans:["9","nine"]},
+   {id:"L10",type:"fill",q:"How many personal trainers work at the centre?",ans:["3","three"]}
+  ]
+ },
+ {
+  title:"Part 2 — Greenfield Open-Air Museum (visitor announcement)",
+  script:`Hello everyone, and a warm welcome to Greenfield Open-Air Museum. My name's Colin and I'm one of the volunteer guides. Before you all head off down the hill, let me tell you a little about the site and how to get the most from your visit.
+Although the preservation society itself was founded in 1902, the museum only moved here, to its present site beside the river, in 1924. Everything you can see — the cottages, the cornmill, the blacksmith's forge — was brought here brick by brick from villages within fifty miles.
+Now, a word about timing, because there is a lot to fit in. If you want to see the millstones actually turning, come back to the cornmill at midday, when the miller opens the sluice gate. That is the only time the waterwheel runs each day, and honestly it is the highlight for many visitors.
+Your entrance ticket covers every building on the site, and also unlimited rides on the miniature railway, which loops around the orchard. Please note that the tractor-and-trailer ride down to the riverside meadow is not included — tickets for that are two pounds, bought from the driver.
+If you have brought bags with you, you will find lockers inside the gift shop, which is the stone building next to the cafe. And when you are ready to leave, do not trudge back up the road — the woodland path brings you out right beside the car park in half the time.
+Three demonstrations run daily. At the forge, you can watch the blacksmith at eleven o'clock sharp; he makes hooks and hinges the old-fashioned way. Flour milled here on site is sold in the gift shop, by the way — it makes lovely bread.
+Families often ask about eating. There is indoor seating at the cafe, but most people head for the picnic tables beside the millpond — it is the prettiest spot on the whole site, and it stays shaded all afternoon.
+For children, pick up the free nature trail sheet from the entrance kiosk. It takes about forty minutes to complete the twelve clue stations, and finished sheets earn a small prize back at the shop.
+Finally, opening hours: the grounds stay open until six o'clock, but please note the two cottages close earlier — last entry to those is half past four, and the staff lock the doors promptly.
+If you have any questions later on, look for anyone wearing a green apron. Enjoy your day!`,
+  questions:[
+   {id:"L11",type:"mc",q:"11. The museum moved to its present site in",options:["1902","1924","1948"],a:1},
+   {id:"L12",type:"mc",q:"12. The waterwheel turns",options:["once a day, at midday","twice a day","only after rain"],a:0},
+   {id:"L13",type:"mc",q:"13. What is included in the entrance ticket?",options:["the tractor-trailer ride","the miniature railway","a bag of flour"],a:1},
+   {id:"L14",type:"mc",q:"14. Lockers are located",options:["beside the cafe door","in the entrance kiosk","inside the gift shop"],a:2},
+   {id:"L15",type:"mc",q:"15. Colin recommends returning to the car park via",options:["the road","the woodland path","the miniature railway"],a:1},
+   {id:"L16",type:"fill",q:"16. The blacksmith demonstration begins at ______ o'clock.",ans:["11","eleven"]},
+   {id:"L17",type:"fill",q:"17. Flour milled on site is sold in the ______ shop.",ans:["gift"]},
+   {id:"L18",type:"fill",q:"18. Picnic tables stand beside the ______.",ans:["millpond","pond"]},
+   {id:"L19",type:"fill",q:"19. The nature trail takes about ______ minutes.",ans:["40","forty"]},
+   {id:"L20",type:"fill",q:"20. Last entry to the cottages is at ______ p.m.",ans:["430","4.30","4:30","halfpastfour"]}
+  ]
+ },
+ {
+  title:"Part 3 — Field trip tutorial (coastal erosion project)",
+  script:`Dr Hayes: Come in, both of you. So, your coastal fieldwork proposal. Let's talk it through. You've chosen Easthaven Beach. Why there?
+Tom: Mainly because of what happened last winter. The storms stripped away several metres of dune, and afterwards the local council published proper survey reports. We felt building directly on those would give our project real depth.
+Dana: Plus my grandparents live ten minutes away, so accommodation is sorted.
+Dr Hayes: Practical thinking. And what exactly will you measure?
+Dana: Beach profiles. We'll knock stakes into the sand at five fixed points along the shore, then measure the slope from each stake down to the waterline. If we repeat that across the season, erosion becomes visible almost week by week.
+Dr Hayes: Sound methodology. How frequently will you repeat the measurements?
+Dana: Every month until spring. Roughly eight visits in total.
+Tom: We already checked about equipment with the geography department — they're lending us the ranging poles and measuring tapes, so there's no cost involved. We just have to reserve them a week ahead each time.
+Dr Hayes: Very good. Have you considered risks?
+Tom: Honestly, the biggest worry is the weather. If a serious storm hits during one of our scheduled weeks, the beach changes shape overnight and the readings jump. So we'll build spare weekend slots into the timetable as a buffer.
+Dana: I looked at tides as well. We'll always work within two hours either side of low water, both for accuracy and safety.
+Dr Hayes: Sensible. Now, division of labour. Dana, you have the patience for archives.
+Dana: I'll hunt down old photographs of the same beach in the county records office. Before-and-after comparisons could be really powerful visuals for the presentation.
+Tom: And I'll take care of the risk assessment form — the department refuses to approve any fieldwork without one on file.
+Dana: As for booking the equipment, why don't we do that together once the dates are locked in? Two signatures look keener than one.
+Tom: Agreed. I'll handle the spreadsheet design on my own, though — one column per stake point, with automatic graphs. It'll make data entry much quicker.
+Dr Hayes: One more thread. The council officer who wrote the storm surveys is called Ms Okafor. She might share unpublished figures with you. Who approaches her?
+Dana: I will. I actually quoted her work in last term's essay, so I know her publications well.
+Dr Hayes: Then you're the obvious choice. Deadlines: the full draft reaches me by the fifteenth of December, and presentations run in the first week of February. If anything goes wrong, email me early — not at midnight the night before. Good luck, you two.`,
+  questions:[
+   {id:"L21",type:"mc",q:"21. Why did the students choose Easthaven Beach?",options:["cheap accommodation nearby","post-storm survey data existed","it is close to the university"],a:1},
+   {id:"L22",type:"mc",q:"22. Their main research method is",options:["interviewing residents","photographing cliffs","measuring beach profiles"],a:2},
+   {id:"L23",type:"mc",q:"23. Measurements will be repeated",options:["every week","every month","one time only"],a:1},
+   {id:"L24",type:"mc",q:"24. The equipment is provided by",options:["the geography department","an equipment hire shop","the local council"],a:0},
+   {id:"L25",type:"mc",q:"25. Tom's greatest concern is",options:["tide timings","bad weather","equipment cost"],a:1},
+   {id:"L26",type:"mc",q:"26. The full draft must be handed in by",options:["15 November","1 February","15 December"],a:2},
+   {id:"L27",type:"mc",q:"27. Collecting old photographs of the beach",options:["Dana","Tom","Both students"],a:0},
+   {id:"L28",type:"mc",q:"28. Writing the risk assessment",options:["Dana","Tom","Both students"],a:1},
+   {id:"L29",type:"mc",q:"29. Reserving the equipment",options:["Dana","Tom","Both students"],a:2},
+   {id:"L30",type:"mc",q:"30. Contacting Ms Okafor",options:["Dana","Tom","Both students"],a:0}
+  ]
+ },
+ {
+  title:"Part 4 — Urban geography lecture (Urban Heat Islands)",
+  script:`Good morning everyone. Today's lecture examines urban heat islands — the phenomenon whereby cities become significantly warmer than the countryside surrounding them. By the end you should understand the causes, the consequences, and some emerging solutions.
+First, the causes. The primary driver is surface materials. Rural land is covered by soil and plants, but cities replace this with concrete, brick, and dark surfaces such as roofs and roads. These absorb enormous amounts of solar radiation during the day and release it slowly after dark, keeping urban air warm through the night.
+Geometry matters too. Tall buildings create narrow street canyons that block the wind, so natural ventilation slows dramatically compared with open farmland.
+Vegetation cools its surroundings through evaporation from leaves — a process that consumes heat energy. Where there is less vegetation, that evaporative cooling simply cannot occur. Then add the waste heat we generate ourselves: traffic, industry, and millions of air-conditioning units pumping warm air out onto the street, and the whole effect compounds.
+How large is the phenomenon? The difference is greatest at night, when a city can remain as much as seven degrees Celsius warmer than its rural surroundings. During the day the gap narrows to perhaps three or four degrees.
+The consequences stretch far beyond discomfort. Higher temperatures push electricity demand upwards at exactly the moments the grid is most strained, and the additional generation increases air pollution. Heat stresses the human body too, and during extended heatwaves, death rates among elderly residents climb sharply in poorly insulated districts.
+So what can be done? Engineers increasingly favour light-coloured or reflective roofs, which bounce incoming sunlight straight back into the atmosphere instead of absorbing it. Painting roofs white sounds trivial, yet field trials show surface temperature reductions of around twenty degrees.
+Green roofs take a different approach: a layer of living plants intercepts sunlight for photosynthesis rather than heat storage, and the soil beneath holds rainwater. That second function matters more than most people realise, because sudden summer storms overwhelm drainage networks; green roofs delay the runoff and thereby reduce flooding further downstream.
+At street level, trees provide shade and cooling, although planners report an unexpected obstacle: roots compete with underground pipes and cables, so new developments must deliberately design adequate soil volumes in advance.
+Finally, urban layout itself. Leaving deliberate gaps between tall buildings channels breezes deep into city blocks, improving air flow and flushing accumulated heat out far more effectively than mechanical systems ever could.
+To conclude: heat islands arise from surface materials, urban geometry, lost vegetation, and our own machines. The remedies — reflective surfaces, planted roofs, urban trees, and smarter layouts — are proven and increasingly affordable. What remains scarce, as usual, is political will. Next week we turn to coastal megacities and the economics of rising sea levels. Thank you.`,
+  questions:[
+   {id:"L31",type:"fill",q:"31. Dark surfaces such as roofs and ______ store daytime heat.",ans:["roads"]},
+   {id:"L32",type:"fill",q:"32. Street canyons formed by tall buildings block the ______.",ans:["wind","winds"]},
+   {id:"L33",type:"fill",q:"33. Evaporative cooling requires plenty of ______.",ans:["vegetation","plants","trees"]},
+   {id:"L34",type:"fill",q:"34. Air-______ units release waste heat outdoors.",ans:["conditioning"]},
+   {id:"L35",type:"fill",q:"35. At night cities can be ______ degrees Celsius warmer.",ans:["7","seven"]},
+   {id:"L36",type:"fill",q:"36. Extra generation raises air ______.",ans:["pollution"]},
+   {id:"L37",type:"fill",q:"37. Deaths rise among elderly residents during prolonged ______.",ans:["heatwaves","heat waves"]},
+   {id:"L38",type:"fill",q:"38. Sunlight bounces off light-coloured ______.",ans:["roofs","roof"]},
+   {id:"L39",type:"fill",q:"39. Green roofs hold rainwater, reducing ______ downstream.",ans:["flooding"]},
+   {id:"L40",type:"fill",q:"40. Gaps between buildings improve air ______.",ans:["flow"]}
+  ]
+ }
+]
+};
+
+/* ============================================================
+   CONTENT — READING (Academic)
+============================================================ */
+const READING={passages:[
+{
+ title:"Passage 1 — Steeped in History: The Story of Tea",
+ body:`You should spend about 20 minutes on Questions 1-13.
+
+A
+According to legend, tea was discovered in 2737 BC by the Chinese emperor Shen Nong, a renowned herbalist who insisted that drinking water be boiled for hygiene. One day, as his servant boiled water outdoors, a gust of wind carried leaves from a nearby wild tea tree into the cauldron. Intrigued by the resulting aroma, the emperor tasted the infusion and found it delicious and refreshing. Whether or not the story is true, China's association with tea is undeniably ancient; by the Tang dynasty (618-907 AD) tea had become the national drink, and the scholar Lu Yu had written the Cha Jing, the world's first book devoted entirely to tea.
+
+B
+Buddhist monks were among tea's earliest champions, brewing it to remain awake during long hours of meditation. Monks travelling between China and Japan carried seeds and plants with them, and tea took firm root in Japanese monasteries from around the ninth century. Over subsequent centuries the Japanese transformed tea drinking into the austere, highly ritualised ceremony known as chanoyu, refined by the tea master Sen no Rikyu in the sixteenth century.
+
+C
+Tea reached Europe in 1610 aboard Dutch trading ships returning from Java. Initially it was a curiosity of staggering expense — so costly that only the wealthiest households could afford it, and it was marketed chiefly as a medicine believed to cure headaches and restore vitality. Coffee houses in London began serving it in the 1650s, but tea remained a luxury item.
+
+D
+Tea's fortunes in Britain changed dramatically thanks to royalty. In 1662 Catherine of Braganza of Portugal married King Charles II, bringing with her a courtly habit of taking tea with sweets in the afternoon. The English court promptly imitated her, and among the aristocracy serving tea became a statement of refinement. As imports grew through the eighteenth century, smuggling and adulteration kept prices volatile, yet gradually the drink filtered downward through society until it was a fixture in virtually every household.
+
+E
+Trade with China came at a painful price. Britain, paying silver for vast quantities of tea, ran enormous deficits with the Qing empire. To reverse the flow, British merchants exported opium grown in India to China, creating addiction on a massive scale. Chinese resistance to the trade triggered the Opium Wars of 1839-1842 and 1856-1860 — conflicts historians widely agree were rooted substantially in the tea economy.
+
+F
+Determined to end dependence on China, the British sought tea plants within their own empire. In 1823 the Scottish adventurer Robert Bruce encountered indigenous tea trees growing wild in Assam, in north-east India. After his death his brother forwarded specimens to botanical experts, who confirmed in the 1830s that a distinct native variety existed. Plantations expanded rapidly; the Assam Company was founded in 1839, and Ceylon (Sri Lanka) followed after coffee blight destroyed its estates. By 1888 imports from India exceeded those from China, breaking the Chinese monopoly forever.
+
+G
+Another British innovation arrived by accident of appetite. In the 1840s Anna Maria Stanhope, seventh Duchess of Bedford, complained of a "sinking feeling" during the long gap between an early lunch and a fashionably late dinner of up to nine o'clock. She began requesting tea, bread and cakes privately in her room, then started inviting friends to join her. The social ritual of afternoon tea spread swiftly through polite society and became an institution celebrated to this day.
+
+H
+The final transformation was industrial. In 1908 Thomas Sullivan, a New York tea merchant, sent out sample portions of loose tea sewn into thin silk pouches, intending customers to empty them. Confused recipients dropped the whole pouches into boiling water instead and liked the convenience. Deliberately designed tea bags in gauze and later paper followed within a decade, and today the humble tea bag brews billions of daily cups worldwide.`,
+ questions:[
+  {id:"R1",type:"fill",q:"1. Leaves drifted into Emperor Shen Nong's boiling ______.",ans:["water"]},
+  {id:"R2",type:"fill",q:"2. Buddhist monks drank tea to stay ______ during meditation.",ans:["awake"]},
+  {id:"R3",type:"fill",q:"3. Tea first arrived in Europe on ______ trading ships.",ans:["dutch"]},
+  {id:"R4",type:"fill",q:"4. In 1662 Catherine of Braganza married King ______.",ans:["charles","charles2","charlesii"]},
+  {id:"R5",type:"fill",q:"5. Wild tea trees were discovered in ______ in 1823.",ans:["india","assam"]},
+  {id:"R6",type:"fill",q:"6. Customers dropped Sullivan's whole sample ______ into hot water.",ans:["bags","pouches","bag","pouch"]},
+  {id:"R7",type:"tf",q:"7. Emperor Shen Nong discovered tea deliberately while testing herbs.",options:["TRUE","FALSE","NOT GIVEN"],a:1},
+  {id:"R8",type:"tf",q:"8. Japan developed its own formal tea ceremony over several centuries.",options:["TRUE","FALSE","NOT GIVEN"],a:0},
+  {id:"R9",type:"tf",q:"9. When tea reached Europe it was quickly affordable for ordinary families.",options:["TRUE","FALSE","NOT GIVEN"],a:1},
+  {id:"R10",type:"tf",q:"10. Catherine of Braganza's habits helped make tea fashionable among England's elite.",options:["TRUE","FALSE","NOT GIVEN"],a:0},
+  {id:"R11",type:"tf",q:"11. The Opium Wars were partly rooted in the economics of the tea trade.",options:["TRUE","FALSE","NOT GIVEN"],a:0},
+  {id:"R12",type:"tf",q:"12. The Duchess of Bedford created afternoon tea because she felt hungry between meals.",options:["TRUE","FALSE","NOT GIVEN"],a:0},
+  {id:"R13",type:"tf",q:"13. Sullivan originally designed his silk pouches to be brewed whole.",options:["TRUE","FALSE","NOT GIVEN"],a:1}
+ ]
+},
+{
+ title:"Passage 2 — Natural Navigators",
+ body:`You should spend about 20 minutes on Questions 14-26.
+
+A — Remarkable journeys
+Each August, the Arctic tern lifts off from wetlands near the North Pole and begins the longest migration on Earth. Satellite tracking published in 2010 revealed that individuals routinely cover around 70,000 kilometres in a single year as they fly to the Southern Ocean to exploit the Antarctic summer, then return north. Because terns live up to thirty years, researchers calculate that a typical lifetime's flying equals three round trips to the Moon. How such a delicate animal finds its way across featureless ocean has fascinated scientists for generations — and, as it turns out, birds solve navigation with an arsenal of senses humans barely possess.
+
+B — Testing an invisible sense
+Homing pigeons provided the first hard evidence. In classic experiments in the 1970s, William Keeton fitted pigeons with tiny bar magnets and released them far from their loft. On clear days the birds coped, apparently falling back on the position of the sun. Under heavy cloud, however, the magnet-carrying pigeons scattered hopelessly while control birds flew straight home. The implication was startling: pigeons consult the Earth's magnetic field precisely when the sky offers no other cues.
+
+C — A built-in magnetic needle
+What organ detects the field? Microscopic crystals of magnetite — an iron mineral used in compass needles — have since been located in the tissue of pigeons' beaks, arranged like chains of microscopic needles that may twist as the bird turns its head. Some researchers additionally argue for a light-sensitive protein in the eye that could let birds literally see magnetic declination as a faint overlay across their vision. The debate is unresolved, but few doubt the sense exists.
+
+D — Reading the heavens
+Sunlight offers a second toolkit. Honeybees calibrate their famous waggle dance against the sun's azimuth, compensating automatically for its movement across the sky — a time-compensated sun compass. Night migrants go further. In landmark planetarium studies during the 1960s, Stephen Emlen raised indigo buntings under artificial night skies whose stars rotated around the wrong pole; the birds subsequently migrated in directions mirroring the false sky. They had learned, from watching stars wheel, that navigation hangs on the pattern's pivot point — Polaris.
+
+E — The pull of home waters
+Salmon demonstrate chemistry-based navigation. After years roaming the open Pacific, a sockeye returns to spawn in the exact gravel stream where it hatched, distinguishing it by odour. As juveniles the fish imprint on the unique cocktail of dissolved molecules of their natal water; decades later a single sniff of home triggers the final ascent. Seabirds exploit smells too: petrels, criss-crossing thousands of kilometres of empty ocean, home in on dimethyl sulfide, a scent released where plankton graze.
+
+F — Hazards of the modern world
+Understanding these senses has become urgent, because human technology scrambles them. Hatchling sea turtles instinctively crawl toward the brighter seaward horizon, moonlit and glittering; inland streetlights now lure thousands of hatchlings the wrong way, toward roads. Migratory songbirds, navigating by star patterns, collide with illuminated skyscrapers in foggy weather — conservationists estimate hundreds of millions die annually in North America alone. Cities running "lights out" programmes during peak migration report collision drops of up to eighty percent, evidence that knowing how animals navigate tells us precisely how to stop killing them.`,
+ questions:[
+  {id:"R14",type:"mc",q:"Choose the correct heading for paragraph B.",options:["i. Disrupting an unseen sense","ii. Guidance written in starlight","iii. A journey measured in lifetimes","iv. The pull of home waters","v. Hazards of the modern world","vi. A built-in magnetic needle","vii. Benefits for farmers","viii. Training animals to migrate"],a:0},
+  {id:"R15",type:"mc",q:"15. Heading for paragraph C.",options:["i. Disrupting an unseen sense","ii. Guidance written in starlight","iii. A journey measured in lifetimes","iv. The pull of home waters","v. Hazards of the modern world","vi. A built-in magnetic needle","vii. Benefits for farmers","viii. Training animals to migrate"],a:5},
+  {id:"R16",type:"mc",q:"16. Heading for paragraph D.",options:["i. Disrupting an unseen sense","ii. Guidance written in starlight","iii. A journey measured in lifetimes","iv. The pull of home waters","v. Hazards of the modern world","vi. A built-in magnetic needle","vii. Benefits for farmers","viii. Training animals to migrate"],a:1},
+  {id:"R17",type:"mc",q:"17. Heading for paragraph E.",options:["i. Disrupting an unseen sense","ii. Guidance written in starlight","iii. A journey measured in lifetimes","iv. The pull of home waters","v. Hazards of the modern world","vi. A built-in magnetic needle","vii. Benefits for farmers","viii. Training animals to migrate"],a:3},
+  {id:"R18",type:"mc",q:"18. Heading for paragraph F.",options:["i. Disrupting an unseen sense","ii. Guidance written in starlight","iii. A journey measured in lifetimes","iv. The pull of home waters","v. Hazards of the modern world","vi. A built-in magnetic needle","vii. Benefits for farmers","viii. Training animals to migrate"],a:4},
+  {id:"R19",type:"mc",q:"19. What did the 2010 satellite study establish about Arctic terns?",options:["they travel about 70,000 km annually","they live only ten years","they breed in Antarctica"],a:0},
+  {id:"R20",type:"mc",q:"20. Keeton's magnet experiments showed pigeons depend on Earth's magnetic field especially",options:["under overcast skies","at midnight","when crossing oceans"],a:0},
+  {id:"R21",type:"mc",q:"21. Magnetite crystals in pigeon beaks may function as",options:["tiny compass needles","solar sensors","sound amplifiers"],a:0},
+  {id:"R22",type:"mc",q:"22. Emlen's planetarium buntings demonstrated that they navigate using",options:["the moon's phase","the rotation point of star patterns","coastal landmarks"],a:1},
+  {id:"R23",type:"mc",q:"23. Adult salmon identify their birth stream by",options:["its water temperature","its distinctive smell","seafloor magnetic stripes"],a:1},
+  {id:"R24",type:"fill",q:"24. Terns fly south to spend the southern summer around ______.",ans:["antarctica"]},
+  {id:"R25",type:"fill",q:"25. Sockeye salmon spawn in the stream where they ______.",ans:["hatched"]},
+  {id:"R26",type:"fill",q:"26. Artificial lights lure turtle hatchlings away from the ______.",ans:["sea","ocean"]}
+ ]
+},
+{
+ title:"Passage 3 — The Price of Happiness",
+ body:`You should spend about 20 minutes on Questions 27-40.
+
+Does national wealth buy national happiness? For most of the twentieth century economists assumed it did, treating gross domestic product as a proxy for welfare. The emergence of "happiness economics" has punctured that confidence. Its founding observation, articulated by Richard Easterlin in 1974, is the paradox that now bears his name: within any given country richer individuals report greater life satisfaction than poorer ones, yet as national income climbs over the decades, average happiness stubbornly fails to follow. Post-war America grew vastly richer; reported wellbeing barely budged.
+
+Measurement itself was the first battleground. Happiness researchers settled on deceptively simple instruments: survey questions asking respondents to rate their overall life satisfaction on a scale, say, of zero to ten, or to imagine a ladder with the best possible life at the top and place themselves upon it. Such subjective measures were once derided as unscientific, but large datasets proved strikingly stable and predictive — of voting behaviour, health outcomes, even suicide rates. Credibility arrived officially when international bodies issued measurement guidelines in 2013, and when governments from Bhutan to New Zealand began publishing wellbeing statistics alongside conventional economic indicators.
+
+Why, then, doesn't money translate into mass contentment? The most robust finding concerns diminishing returns. Plotting income against satisfaction produces a logarithmic curve: each additional dollar buys progressively less happiness, and once citizens comfortably cover necessities — food, shelter, healthcare, schooling — further gains grow thin. A widely cited analysis by Daniel Kahneman's team suggested that beyond a moderate threshold, everyday emotional wellbeing plateaus altogether, although later reanalyses indicate the flattening applies mainly to certain populations.
+
+A subtler mechanism is social comparison. Humans evaluate their income less in absolute terms than in relation to a reference group. In a famous survey, Sara Solnick and David Hemenway offered respondents a choice: earn fifty thousand dollars while others around them earned twenty-five thousand, or earn one hundred thousand while neighbours earned double. A majority chose the lower absolute figure, preferring to outrank their peers. Wealth, in other words, is positional — a competition in which raising everyone's salary cancels itself out.
+
+Money's limitations sharpen when we examine what lies outside payslips. Unemployment devastates wellbeing far beyond the income lost: longitudinal studies show lasting damage to identity, daily structure and social standing that persists even after re-employment at equivalent wages. Similarly, researchers tracking commuters documented what Andrew Oswald dubbed the commuter's paradox — people accept longer journeys to reach higher-paying jobs in larger houses, yet fail to anticipate how thoroughly the daily grind corrodes life satisfaction. Health, marriage and, above all, trust in fellow citizens predict happiness at least as strongly as income does.
+
+Adaptation complicates everything. Philip Brickman's celebrated 1978 study found that major lottery winners, after an initial euphoria, reverted close to their previous baseline mood, as did accident victims to theirs — the "hedonic treadmill". Yet adaptation proves selective: people never fully adjust to unemployment, noise, or lengthy commutes, a nuance later work by Richard Lucas established firmly.
+
+For policymakers the implications are reshaping budgets. The consistently happiest nations — Denmark, Finland and their Nordic neighbours — pair prosperity with high interpersonal trust, compressed income distributions and comprehensive safety nets. Their lesson is not that wealth is irrelevant; destitution is misery, full stop. Rather, once subsistence is secured, investments in health, social connection and equality appear to purchase more collective happiness per unit of expenditure than raw growth does. New Zealand's Wellbeing Budget of 2019 was the first national account to allocate spending explicitly on such terms.
+
+Happiness economics does not counsel abandoning growth. It counsels remembering its place: a foundation, not the building. The good society, the data insist, is engineered from security, fairness and belonging — commodities no treasury can simply purchase, but none can afford to ignore.`,
+ questions:[
+  {id:"R27",type:"tf",q:"27. YES/NO/NOT GIVEN: Money's contribution to happiness disappears completely above a certain income.",options:["YES","NO","NOT GIVEN"],a:1},
+  {id:"R28",type:"tf",q:"28. YES/NO/NOT GIVEN: Unemployment harms wellbeing mainly through lost income.",options:["YES","NO","NOT GIVEN"],a:1},
+  {id:"R29",type:"tf",q:"29. YES/NO/NOT GIVEN: Governments increasingly publish wellbeing measures alongside economic statistics.",options:["YES","NO","NOT GIVEN"],a:0},
+  {id:"R30",type:"tf",q:"30. YES/NO/NOT GIVEN: The writer believes hedonic adaptation fully explains the Easterlin paradox.",options:["YES","NO","NOT GIVEN"],a:2},
+  {id:"R31",type:"mc",q:"31. The Easterlin paradox observes that",options:["poorer countries report happier citizens","average happiness does not track long-term national income growth","subjective surveys are unreliable"],a:1},
+  {id:"R32",type:"mc",q:"32. In the Solnick and Hemenway survey, most respondents preferred",options:["earning less money than their peers could earn","a lower absolute salary that ranked them above neighbours","unknown salaries to preserve fairness"],a:1},
+  {id:"R33",type:"mc",q:"33. The 'commuter's paradox' refers to people who",options:["enjoy long commutes as leisure time","accept longer commutes for pay, underestimating the harm to satisfaction","move closer to work as income rises"],a:1},
+  {id:"R34",type:"mc",q:"34. Brickman's lottery-winner study is evidence for",options:["positional goods","diminishing marginal utility","return to prior happiness levels after windfalls"],a:2},
+  {id:"R35",type:"mc",q:"35. Nordic countries' high rankings are attributed mainly to",options:["trust, equality and safety nets","oil revenues","short working hours alone"],a:0},
+  {id:"R36",type:"mc",q:"36. According to the writer, happiness economics recommends",options:["abandoning GDP measurement entirely","directing policy spending toward wellbeing outcomes","guaranteeing equal salaries for all"],a:1},
+  {id:"R37",type:"fill",q:"37. Surveys ask respondents to rate overall life ______.",ans:["satisfaction"]},
+  {id:"R38",type:"fill",q:"38. Once necessities are met, extra income yields diminishing ______.",ans:["returns"]},
+  {id:"R39",type:"fill",q:"39. People gain more happiness from shared ______ than from possessions.",ans:["experiences"]},
+  {id:"R40",type:"fill",q:"40. Trust, fairness and belonging are described as the foundation of the good ______.",ans:["society"]}
+ ]
+}]};
+
+/* ============================================================
+   CONTENT — WRITING
+============================================================ */
+const WRITING={
+ t1:{
+  prompt:"The chart below shows household spending as a percentage of total expenditure in Freedonia in 1990, 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+  cats:["Food","Housing","Transport","Leisure","Clothing"],
+  series:[
+   {name:"1990",vals:[35,18,12,8,10]},
+   {name:"2000",vals:[28,21,14,12,8]},
+   {name:"2020",vals:[19,26,16,17,5]}
+  ],
+  colors:["#C8102E","#12263f","#7aa7d9"]
+ },
+ t2:{
+  prompt:"Some people believe that schools should teach children how to manage money.\n\nTo what extent do you agree or disagree?\n\nGive reasons for your answer and include any relevant examples from your own knowledge or experience.\n\nWrite at least 250 words."
+ }
+};
+
+/* ============================================================
+   CONTENT — SPEAKING (3 topic sets)
+============================================================ */
+const SPEAKING_SETS=[
+ {name:"Set A — Skills & Learning",p1topic:"learning and how you spend your free time",
+  p1:["Where are you from, and do you still live there?","Do you work, or are you a student?","Did you learn any practical skills as a child, like cooking or cycling?","Is it easier to learn skills from videos or from a teacher? Why?","Do you enjoy learning new things in your free time?"],
+  cue:{topic:"Describe a skill you learned recently.",bullets:["what the skill is","why you decided to learn it","how you learned it","and explain how you feel about it now"]},
+  roundingQ:"Do you think you will use this skill often in the future?",
+  p3:["Why do some people find it harder to learn new skills as they get older?","How has the internet changed the way people learn?","Should employers pay for employees' training? Why?","Do you think schools teach the right skills for modern life?"]},
+ {name:"Set B — Travel & Environment",p1topic:"where you live and travelling",
+  p1:["Let's talk about where you live. What do you like most about your hometown?","Do you prefer hot or cold weather? Why?","How often do you travel somewhere for a holiday?","What was the best trip you have ever taken?","Would you like to live in another country one day?"],
+  cue:{topic:"Describe a place you would like to visit in the future.",bullets:["where it is","how you would travel there","what you would do there","and explain why you want to go there"]},
+  roundingQ:"Would you recommend that place to other people? Why?",
+  p3:["Why do you think some people travel constantly while others rarely leave home?","Does tourism benefit or harm local communities? In what ways?","How might climate change change the way we travel?","Should governments limit flights to protect the environment?"]},
+ {name:"Set C — People & Influence",p1topic:"your daily life and family",
+  p1:["Can you tell me about your daily routine?","What food did you eat as a child that you still love?","Do you spend a lot of time with your family?","Who do you admire most in your family? Why?","Do you prefer texting or calling people? Why?"],
+  cue:{topic:"Describe a person who has influenced you.",bullets:["who this person is","how you know them","what they have done","and explain how they influenced you"]},
+  roundingQ:"Are people like this good role models in your country?",
+  p3:["Are celebrities good role models for young people nowadays?","How important are teachers in shaping character, compared with parents?","Why do some people become influential without holding official positions?","Do you think societies respect older generations enough?"]}
+];
+
+/* ============================================================
+   BAND TABLES
+============================================================ */
+const LISTEN_BANDS=[[39,9],[37,8.5],[35,8],[32,7.5],[30,7],[26,6.5],[23,6],[18,5.5],[16,5],[13,4.5],[11,4],[9,3.5],[7,3],[5,2.5],[3,2],[0,1]];
+const READ_BANDS=[[39,9],[37,8.5],[35,8],[33,7.5],[30,7],[27,6.5],[23,6],[19,5.5],[15,5],[13,4.5],[11,4],[9,3.5],[7,3],[5,2.5],[3,2],[0,1]];
+function rawToBand(raw,table){for(const[min,b]of table){if(raw>=min)return b;}return 1;}
+function roundOverall(avg){let q=Math.ceil(avg*4-1e-9);let b=q/4;if(q%4===1||q%4===3)b=(q+1)/4;return Math.min(9,Math.max(1,Math.round(b*2)/2));}
+
+/* ============================================================
+   APP STATE
+============================================================ */
+let STATE={mode:null,current:null,answers:{},recordings:{},rubrics:{}};
+let IN_TEST=false;
+let CURRENT_SPEAK_SET=0;
+
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d;}catch(e){return d;}}
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+const SCREENS=["scr-home","scr-guide","scr-plan","scr-history","scr-spell","scr-spellrun","scr-mistakes","scr-calc","scr-intro","scr-listening","scr-reading","scr-writing","scr-speaking","scr-results","scr-inter"];
+function show(id){
+  SCREENS.forEach(s=>$(s).classList.add("hidden"));
+  $(id).classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+function goHome(){
+  clearTimers();Speaker.stop();stopRecSilent();
+  if(AI_S&&AI_S.on){AI_S.on=false;AI_S.listening=false;stopAITurnTimers();aiStopRec();}
+  IN_TEST=false;
+  $("hdrSection").classList.add("hidden");
+  $("hdrTimer").classList.add("hidden");
+  show("scr-home");
+}
+
+/* ============================================================
+   SPEAKER (TTS)
+============================================================ */
+const Speaker={
+ chunks:[],i:0,playing:false,voice:null,rate:1,
+ available:("speechSynthesis" in window),
+ playlist:null,pIdx:0,onPart:null,
+ init(){
+  if(!this.available){$("ttsNote").textContent="(Speech not supported in this browser — read scripts manually.)";return;}
+  const pick=()=>{
+    const v=speechSynthesis.getVoices();
+    if(!v.length)return;
+    const en=v.filter(x=>/^en/i.test(x.lang));
+    this.voice=en.find(x=>/en-GB/i.test(x.lang)&&/(aria|libby|sonia|online|british|uk english|george|ryan)/i.test(x.name))
+             ||en.find(x=>/en-GB/i.test(x.lang))||en.find(x=>/zira|david/i.test(x.name))||en[0]||v[0];
+    const sel=$("voiceSel"),sel2=$("setVoice");
+    [sel,sel2].forEach(s=>{if(!s)return;s.innerHTML="";v.forEach((vo,idx)=>{const o=document.createElement("option");o.value=idx;o.textContent=vo.name+" ("+vo.lang+")";s.appendChild(o);});});
+    if(sel&&this.voice)sel.value=v.indexOf(this.voice);
+    if(sel2&&this.voice)sel2.value=v.indexOf(this.voice);
+  };
+  pick();
+  speechSynthesis.onvoiceschanged=pick;
+ },
+ setVoiceByIdx(idx){
+   const v=speechSynthesis.getVoices();
+   if(v[idx]){this.voice=v[idx];}
+ },
+ setRate(r){this.rate=parseFloat(r)||1;},
+ _split(text){return text.split(/\n+/).flatMap(par=>par.split(/(?<=[.!?:])\s+/)).map(s=>s.trim()).filter(Boolean);},
+ load(text){
+   this.playlist=null;this.onPart=null;
+   this.chunks=this._split(text);this.i=0;this.playing=false;
+   if(this.available)speechSynthesis.cancel();
+ },
+ loadPlaylist(scripts,onPart){
+   this.playlist=scripts;this.pIdx=0;this.chunks=this._split(scripts[0]);
+   this.i=0;this.playing=false;this.onPart=onPart||null;
+   if(this.available)speechSynthesis.cancel();
+ },
+ toggle(){
+   if(!this.available)return;
+   const btn=$("playBtn");
+   if(this.playing){this.playing=false;speechSynthesis.cancel();btn.textContent="▶ Resume";}
+   else{this.playing=true;btn.textContent="⏸ Pause";this._speak();}
+ },
+ _utt(text){
+   const u=new SpeechSynthesisUtterance(text);
+   if(this.voice)u.voice=this.voice;
+   u.rate=this.rate;u.lang=this.voice?this.voice.lang:"en-GB";
+   return u;
+ },
+ _speak(){
+   if(!this.available||!this.playing)return;
+   const self=this;
+   if(this.i>=this.chunks.length){
+     if(this.playlist&&this.pIdx<this.playlist.length-1){
+       this.pIdx++;this.chunks=this._split(this.playlist[this.pIdx]);this.i=0;
+       if(this.onPart)this.onPart(this.pIdx);
+       setTimeout(()=>self._speak(),900);return;
+     }
+     this.playing=false;const b=$("playBtn");if(b)b.textContent="▶ Play again";return;
+   }
+   const u=this._utt(this.chunks[this.i]);
+   u.onend=()=>{if(self.playing){self.i++;setTimeout(()=>self._speak(),280);}};
+   u.onerror=u.onend;
+   speechSynthesis.cancel();
+   speechSynthesis.speak(u);
+ },
+ stop(){this.playing=false;if(this.available)speechSynthesis.cancel();const b=$("playBtn");if(b)b.textContent="▶ Play audio";},
+ say(lines,done){
+   if(!this.available){done&&done();return;}
+   const arr=Array.isArray(lines)?lines:[lines];
+   let k=0;const self=this;
+   (function next(){
+     if(k>=arr.length){done&&done();return;}
+     const u=self._utt(arr[k]);
+     u.rate=Math.min(2,self.rate*0.95);
+     u.onend=()=>{k++;setTimeout(next,320);};
+     u.onerror=()=>{k++;setTimeout(next,120);};
+     speechSynthesis.speak(u);
+   })();
+ }
+};
+
+/* ============================================================
+   SECTION FLOW
+============================================================ */
+function startFull(){STATE.mode="full";STATE.order=["listening","reading","writing","speaking"];prepIntro("listening");}
+function startSection(sec,skipMode){if(!skipMode){STATE.mode="practice";}prepIntro(sec);}
+function prepIntro(sec){
+  STATE.current=sec;STATE.answers={};STATE.recordings={};
+  Speaker.stop();
+  const meta={
+   listening:{t:"Paper 1 — Listening",b:`<p><b>4 parts · 40 questions · 30 minutes.</b></p><ul><li>Click ▶ Play audio and listen while answering. Audio is spoken by your browser's voice engine.</li><li>Type short answers (numbers/words) or pick options. Spelling counts.</li><li>You may pause/resume audio unless replay is disabled in Settings.</li></ul><div class="hintbox">Use headphones and don't scroll ahead while listening — mimic real exam discipline.</div>`},
+   reading:{t:"Paper 2 — Reading",b:`<p><b>3 passages · 40 questions · 60 minutes</b> (≈20 min each).</p><ul><li>Switch passages with the tabs. Answers save automatically.</li><li>Never leave blanks — wrong answers cost nothing.</li></ul>`},
+   writing:{t:"Paper 3 — Writing",b:`<p><b>Task 1 (≥150 words) + Task 2 (≥250 words) · 60 minutes total.</b></p><ul><li>Suggested: 20 min Task 1, 40 min Task 2 (Task 2 counts double).</li><li>Live word counters included. After submitting you'll self-score with official criteria.</li></ul>`},
+   speaking:{t:"Paper 4 — Speaking",b:`<p><b>Parts 1-3 · ~12 minutes · two examiner modes</b></p>
+     <ul><li><b>🤖 AI Examiner (recommended):</b> a real AI model speaks the questions aloud, <b>listens to you speak</b> through your microphone, responds naturally, and gives band feedback at the end. Needs Chrome/Edge + internet.</li>
+     <li><b>📜 Scripted Examiner (offline):</b> fixed questions spoken by your browser's voice; answers are recorded for playback. Works with no internet.</li></ul>
+     <ul style="margin-top:0"><li>Both modes: cue card → 1 min prep → 2-min long turn → Part 3 discussion, with realistic time limits (~40s Part 1 answers, ~70s Part 3).</li></ul>
+     <div class="warnbox">Allow microphone + (AI mode) an internet connection. Recordings and transcripts stay in your browser unless you use the AI proxy.</div>`}
+  }[sec];
+  $("introTitle").textContent=meta.t;
+  $("introBody").innerHTML=meta.b;
+  if(sec==="speaking"){
+    $("introBtn").textContent="📜 Start Scripted Examiner";
+    $("introBody").innerHTML+='<div style="margin-top:14px"><button class="btn modebtn" onclick="startAISpeaking()">🤖 Start AI Examiner (talk to a real model)</button>'+
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px">AI mode uses speech recognition + a live language model. Configure providers in ⚙ Settings.</div></div>';
+  }else{
+    $("introBtn").textContent="Start";
+  }
+  show("scr-intro");
+}
+function beginSection(){
+  IN_TEST=true;
+  const sec=STATE.current;
+  $("hdrSection").textContent=sec.toUpperCase();
+  $("hdrSection").classList.remove("hidden");
+  if(sec==="listening")initListening();
+  if(sec==="reading")initReading();
+  if(sec==="writing")initWriting();
+  if(sec==="speaking")initSpeaking();
+}
+function interstitial(done,nextSec){
+  clearTimers();IN_TEST=false;
+  const names={listening:"Listening",reading:"Reading",writing:"Writing",speaking:"Speaking"};
+  $("interTitle").textContent=names[done]+" submitted ✔";
+  $("interSub").textContent=nextSec?("Next paper: "+names[nextSec]+". Stand up, stretch — then continue."):"All papers complete. Time to see your estimated bands.";
+  const btn=$("interBtn");
+  btn.textContent=nextSec?("Continue to "+names[nextSec]):("View results");
+  btn.onclick=()=>{if(nextSec){STATE.current=nextSec;$("hdrSection").textContent=nextSec.toUpperCase();prepIntro(nextSec);}else{renderResults();}};
+  show("scr-inter");
+}
+function submitSection(sec){
+  if(!confirm("Submit "+sec+" now?"))return;
+  Speaker.stop();
+  if(sec==="listening"){clearTimers();interstitial("listening",STATE.mode==="full"?"reading":null);}
+  if(sec==="reading"){clearTimers();interstitial("reading",STATE.mode==="full"?"writing":null);}
+  if(sec==="writing"){clearTimers();LAST_WRITING={t1:$("ta1").value,t2:$("ta2").value};interstitial("writing",STATE.mode==="full"?"speaking":null);}
+}
+
+/* ============================================================
+   LISTENING SCREEN
+============================================================ */
+function renderQuestion(q,num){
+  let html='<div class="qblock" data-q="'+q.id+'"><div class="review-q"><span class="qnum">'+(num!==undefined?esc(String(num))+". ":"")+'</span>'+esc(q.q).replace(/^(\d+\.)\s*/,'')+"</div>";
+  if(q.type==="mc"){
+    q.options.forEach((op,i)=>{
+      html+='<label class="opt-row"><input type="radio" name="'+q.id+'" value="'+i+'"> '+esc(op)+"</label>";
+    });
+  }else if(q.type==="tf"){
+    q.options.forEach((op,i)=>{
+      html+='<label class="opt-row"><input type="radio" name="'+q.id+'" value="'+i+'"> '+esc(op)+"</label>";
+    });
+  }else{
+    html+='<input type="text" autocomplete="off" data-fill="'+q.id+'" placeholder="Your answer">';
+  }
+  return html+"</div>";
+}
+function bindAnswers(){
+  document.querySelectorAll(".qblock input[type=radio]").forEach(r=>{
+    r.addEventListener("change",()=>{STATE.answers[r.name]=parseInt(r.value);});
+  });
+  document.querySelectorAll(".qblock input[type=text]").forEach(t=>{
+    t.addEventListener("input",()=>{STATE.answers[t.dataset.fill]=t.value;});
+  });
+}
+function initListening(){
+  show("scr-listening");
+  let html="",counter=0;
+  LISTENING.parts.forEach(p=>{
+    counter++;
+    html+='<div class="card"><h3>'+esc(p.title)+"</h3>";
+    p.questions.forEach(q=>{
+      const num=q.id.slice(1);
+      html+=renderQuestion(q,num);
+    });
+    html+="</div>";
+  });
+  $("listeningParts").innerHTML=html;
+  bindAnswers();
+  // Sequential parts playback
+  Speaker.loadPlaylist(LISTENING.parts.map(p=>p.script),(idx)=>{
+    $("lpLabel").textContent="Part "+(idx+1);
+    $("playBtn").textContent="⏸ Pause";
+  });
+  $("playBtn").disabled=!Speaker.available;
+  if(Speaker.available)$("playBtn").textContent="▶ Play Part 1 audio";
+  const vSel=$("voiceSel");
+  vSel.onchange=()=>{Speaker.setVoiceByIdx(parseInt(vSel.value));};
+  startTimer(30*60,()=>{alert("Time is up — Listening submitted.");doSubmitQuiet("listening");},"Listening");
+}
+function doSubmitQuiet(sec){
+  if(sec==="listening"){clearTimers();interstitial("listening",STATE.mode==="full"?"reading":null);}
+  if(sec==="reading"){clearTimers();interstitial("reading",STATE.mode==="full"?"writing":null);}
+  if(sec==="writing"){clearTimers();LAST_WRITING={t1:$("ta1").value,t2:$("ta2").value};interstitial("writing",STATE.mode==="full"?"speaking":null);}
+}
+
+/* ============================================================
+   READING SCREEN
+============================================================ */
+let READ_TAB=0;
+function initReading(){
+  READ_TAB=0;
+  renderReadTabs();
+  renderReadPassage();
+  show("scr-reading");
+  startTimer(60*60,()=>{alert("Time is up — Reading submitted.");doSubmitQuiet("reading");},"Reading");
+}
+function renderReadTabs(){
+  let h="";
+  READING.passages.forEach((p,i)=>{
+    h+='<button class="tab'+(i===READ_TAB?" active":"")+'" onclick="READ_TAB='+i+';renderReadTabs();renderReadPassage()">Passage '+(i+1)+"</button>";
+  });
+  $("readTabs").innerHTML=h;
+}
+function renderReadPassage(){
+  const p=READING.passages[READ_TAB];
+  let html='<div class="passage">'+esc(p.body)+"</div>";
+  p.questions.forEach(q=>{
+    html+=renderQuestion(q,q.id.slice(1));
+  });
+  $("readBody").innerHTML=html;
+  bindAnswers();
+}
+
+/* ============================================================
+   WRITING SCREEN
+============================================================ */
+let LAST_WRITING={t1:"",t2:""};
+function barChartSVG(){
+  const d=WRITING.t1;
+  const W=760,H=400,pad=46,gw=(W-pad*2)/d.cats.length;
+  const maxV=Math.ceil(Math.max(...d.series.flatMap(s=>s.vals))/5)*5;
+  const bw=(gw-30)/d.series.length;
+  let svg='<svg viewBox="0 0 '+W+" "+H+'" style="width:100%;max-width:'+W+'px">';
+  for(let g=0;g<=maxV;g+=5){
+    const y=H-40-(H-80)*g/maxV;
+    svg+='<line x1="'+pad+'" y1="'+y+'" x2="'+(W-10)+'" y2="'+y+'" stroke="#e2e7f0"/>';
+    svg+='<text x="'+(pad-8)+'" y="'+(y+4)+'" font-size="11" fill="#5c6b82" text-anchor="end">'+g+"%</text>";
+  }
+  d.cats.forEach((c,ci)=>{
+    const gx=pad+ci*gw;
+    d.series.forEach((s,si)=>{
+      const v=s.vals[ci];
+      const bh=(H-80)*v/maxV;
+      const x=gx+15+si*bw,y=H-40-bh;
+      svg+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(bw-4).toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="3" fill="'+d.colors[si]+'"/>';
+      svg+='<text x="'+(x+(bw-4)/2).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" font-size="10" fill="#12263f" text-anchor="middle">'+v+"</text>";
+    });
+    svg+='<text x="'+(gx+gw/2)+'" y="'+(H-18)+'" font-size="13" fill="#12263f" text-anchor="middle">'+esc(c)+"</text>";
+  });
+  d.series.forEach((s,si)=>{
+    const lx=W-150,ly=24+si*20;
+    svg+='<rect x="'+lx+'" y="'+ly+'" width="12" height="12" fill="'+d.colors[si]+'"/>';
+    svg+='<text x="'+(lx+18)+'" y="'+(ly+10)+'" font-size="12" fill="#12263f">'+esc(s.name)+"</text>";
+  });
+  svg+="</svg>";
+  return svg;
+}
+function initWriting(){
+  LAST_WRITING={t1:"",t2:""};
+  $("t1prompt").innerText=WRITING.t1.prompt;
+  $("t2prompt").innerText=WRITING.t2.prompt;
+  $("chartHolder").innerHTML=barChartSVG();
+  $("ta1").value="";$("ta2").value="";
+  updateWC();
+  show("scr-writing");
+  startTimer(60*60,()=>{alert("Time is up — Writing submitted.");LAST_WRITING={t1:$("ta1").value,t2:$("ta2").value};doSubmitQuiet("writing");},"Writing");
+}
+function wc(t){return t.trim()?t.trim().split(/\s+/).length:0;}
+function updateWC(){
+  const a=wc($("ta1").value),b=wc($("ta2").value);
+  const w1=$("wc1"),w2=$("wc2");
+  w1.textContent=a+" words"+(a>=150?" ✔":" (min 150)");
+  w2.textContent=b+" words"+(b>=250?" ✔":" (min 250)");
+  w1.className="wordcount"+(a>=150?" wc-ok":"");
+  w2.className="wordcount"+(b>=250?" wc-ok":"");
+}
+
+/* ============================================================
+   AI CHAT HELPER (same-origin proxy or direct BYOK)
+============================================================ */
+const AI_BASES={
+  groq:"https://api.groq.com/openai/v1",
+  gemini:"https://generativelanguage.googleapis.com/v1beta/openai",
+  openrouter:"https://openrouter.ai/api/v1",
+  mistral:"https://api.mistral.ai/v1",
+  cerebras:"https://api.cerebras.ai/v1",
+  "github-models":"https://models.github.ai/inference",
+  openai:"https://api.openai.com/v1"
+};
+const AI_DEFAULT_MODELS={
+  groq:"llama-3.3-70b-versatile",gemini:"gemini-2.0-flash",
+  openrouter:"meta-llama/llama-3.3-70b-instruct:free",mistral:"mistral-small-latest",
+  cerebras:"llama-3.3-70b","github-models":"openai/gpt-4o-mini",openai:"gpt-4o-mini"
+};
+async function aiChat(messages,opts={}){
+  const cfg=load("ielts_ai",{});
+  if(cfg.mode==="direct"){
+    const model=cfg.model||AI_DEFAULT_MODELS[cfg.provider]||"llama-3.3-70b-versatile";
+    if(!cfg.key)throw new Error("No API key set - open Settings > AI Examiner");
+    const base=AI_BASES[cfg.provider]||AI_BASES.groq;
+    const r=await fetch(base+"/chat/completions",{method:"POST",
+      headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},
+      body:JSON.stringify({model,messages,temperature:opts.temperature!=null?opts.temperature:0.6,max_tokens:opts.maxTokens||300})});
+    if(!r.ok)throw new Error("HTTP "+r.status+" from "+cfg.provider);
+    const d=await r.json();
+    const c=d.choices&&d.choices[0]&&d.choices[0].message?d.choices[0].message.content:null;
+    if(!c)throw new Error("Empty AI response");
+    return {text:c,model};
+  }
+  const headers={"Content-Type":"application/json"};
+  if(cfg.key&&cfg.provider){headers["x-ai-provider"]=cfg.provider;headers["x-ai-key"]=cfg.key;}
+  let r;
+  try{r=await fetch("/api/chat",{method:"POST",headers,body:JSON.stringify({messages})});}
+  catch(e){throw new Error("Cannot reach /api/chat - run 'npm run dev' and open http://localhost:3000/ielts/");}
+  let d={};try{d=await r.json();}catch(e){}
+  if(!r.ok||!d.content)throw new Error(d.error||("HTTP "+r.status));
+  return {text:d.content,model:d.model||"proxy"};
+}
+async function testAI(){
+  const out=$("aiTestOut");out.textContent="testing…";out.className="thinking";
+  try{
+    const res=await aiChat([{role:"user",content:'Reply with exactly: OK'}],{maxTokens:10});
+    out.textContent="✔ works ("+res.model+")";out.className="";
+  }catch(e){out.textContent="✘ "+e.message;out.className="";}
+}
+
+/* ============================================================
+   SPEAKING SCREEN — EXAMINER SIMULATION + RECORDER
+============================================================ */
+let REC_STATE={active:false,key:null,startTs:0,mr:null,stream:null,to:null,interrupted:false,err:false};
+let CUR_SET=null;
+let SP={steps:[],idx:0,nudged:{},spent:{1:0,2:0,3:0},strict:true,_log:[]};
+
+function buildSpeakFlow(set){
+  const h=new Date().getHours();
+  const greet=h<12?"Good morning":(h<18?"Good afternoon":"Good evening");
+  const steps=[];
+  steps.push({mode:"intro",label:"Introduction & identification",
+    lines:[greet+". My name is Examiner Hart. Can you tell me your full name, please?",
+           "And what should I call you?",
+           "Can you tell me where you are from?",
+           "Thank you. Now, in this first part, I'd like to ask you some questions about yourself.",
+           "Let's talk about "+set.p1topic+"."],
+    note:"Answer aloud as if face-to-face, then press Continue."});
+  set.p1.forEach((q,i)=>steps.push({mode:"talk",part:1,q,key:"p1_"+i,max:40,min:9,
+    label:"Part 1 · Question "+(i+1)+" of "+set.p1.length}));
+  steps.push({mode:"trans",label:"Transition",
+    lines:["That is the end of Part One.",
+           "Now I'm going to give you a topic, and I'd like you to talk about it for one to two minutes.",
+           "Before you talk, you'll have one minute to think about what you're going to say. You can make some notes if you wish.",
+           "Here is your topic."],
+    note:""});
+  steps.push({mode:"cuecard",label:"Part 2 · Cue card",note:"Read it during your preparation minute."});
+  steps.push({mode:"prep",label:"Part 2 · Preparation",dur:60,note:"Make notes below. The clock is running."});
+  steps.push({mode:"talk",part:2,cue:true,key:"p2",max:120,min:20,label:"Part 2 · Speak (1–2 minutes)",
+    preLines:["All right? Remember, you have one to two minutes for this.","Please begin speaking now."]});
+  steps.push({mode:"talk",part:2,key:"p2r",q:set.roundingQ,max:25,min:3,noInterrupt:true,label:"Part 2 · Follow-up question",
+    preLines:["Thank you."]});
+  steps.push({mode:"trans",label:"Transition",
+    lines:["Thank you.","Now I'd like to discuss a few more general questions related to this topic."],note:""});
+  set.p3.forEach((q,i)=>steps.push({mode:"talk",part:3,q,key:"p3_"+i,max:70,min:12,
+    label:"Part 3 · Discussion "+(i+1)+" of "+set.p3.length}));
+  steps.push({mode:"end",label:"End of test",
+    lines:["That is the end of your speaking test.","Thank you, and good luck with your results!"],
+    note:"Review your recordings and grade yourself on the next screen."});
+  return steps;
+}
+function cur(){return SP.steps[SP.idx];}
+function exLine(t){
+  SP._log.push({who:"Examiner",t:t});
+  $("exLog").innerHTML+='<div class="log-ex">EXAMINER: '+esc(t)+"</div>";
+}
+function youLine(t){
+  SP._log.push({who:"You",t:t});
+  $("exLog").innerHTML+='<div class="log-you">YOU: '+esc(t)+"</div>";
+}
+
+function initSpeaking(){
+  CURRENT_SPEAK_SET=Math.floor(Math.random()*SPEAKING_SETS.length);
+  CUR_SET=SPEAKING_SETS[CURRENT_SPEAK_SET];
+  SP.steps=buildSpeakFlow(CUR_SET);SP.idx=0;SP.nudged={};
+  SP.spent={1:0,2:0,3:0};SP._log=[];
+  const s=load("ielts_settings",{});
+  SP.strict=s.examiner!==false;
+  show("scr-speaking");
+  $("micWarn").classList.add("hidden");
+  $("exLog").innerHTML="";
+  renderSpeakStep();
+}
+
+function renderSpeakStep(){
+  stopRecSilent();
+  const st=cur();
+  $("recStatus").textContent="";
+  $("recPlayback").innerHTML="";
+  $("nextStepBtn").disabled=true;
+  $("nextStepBtn").textContent=(st.mode==="end")?"Finish & view results →":"Continue →";
+  let h='<div style="color:var(--red);font-weight:700;font-size:12px;letter-spacing:1px">'+esc(st.label||"")+"</div>";
+
+  if(st.mode==="intro"||st.mode==="trans"||st.mode==="end"){
+    h+=st.lines.map(l=>'<div class="ex-line">'+esc(l)+"</div>").join("");
+    if(st.note)h+='<div style="color:var(--muted);font-size:13px;margin-top:6px">'+esc(st.note)+"</div>";
+    $("speakStep").innerHTML=h;
+    st.lines.forEach(exLine);
+    Speaker.say(st.lines,()=>$("nextStepBtn").disabled=false);
+    return;
+  }
+  if(st.mode==="cuecard"){
+    h+='<div class="cuecard"><h4>'+esc(CUR_SET.cue.topic)+"</h4><ul>"+
+       CUR_SET.cue.bullets.map(b=>"<li>"+esc(b)+"</li>").join("")+
+       '</ul><small>Speak for 1–2 minutes on this topic.</small></div>';
+    $("speakStep").innerHTML=h;
+    exLine("(shows you the cue card)");
+    $("nextStepBtn").disabled=false;
+    return;
+  }
+  if(st.mode==="prep"){
+    h+='<textarea id="cueNotes" placeholder="Optional notes..." style="min-height:90px"></textarea>';
+    $("speakStep").innerHTML=h;
+    let left=st.dur;
+    $("recStatus").textContent="Preparation time left: "+fmt(left);
+    const iv=setInterval(()=>{
+      left--;
+      $("recStatus").textContent="Preparation time left: "+fmt(left);
+      if(left<=0){
+        clearInterval(iv);
+        exLine("Time is up.");
+        advance();
+      }
+    },1000);
+    ACTIVE_TIMERS.push(iv);
+    return;
+  }
+  // ---- talk mode ----
+  const budgetHit=SP.strict&&((st.part===1&&SP.spent[1]>=270)||(st.part===3&&SP.spent[3]>=300));
+  if(budgetHit){
+    const msg="Thank you. That is the end of this part.";
+    let j=SP.idx;
+    while(j<SP.steps.length&&SP.steps[j].part===st.part)j++;
+    SP.idx=j-1;
+    exLine(msg);
+    $("speakStep").innerHTML=h+'<div class="ex-line">'+esc(msg)+"</div>"+
+      '<div style="color:var(--muted);font-size:13px;margin-top:6px">The part time budget was reached, so remaining questions were skipped — exactly like a real examiner moving on.</div>';
+    $("nextStepBtn").disabled=false;
+    return;
+  }
+  h+='<h3 style="margin:10px 0">'+(st.cue?'<span style="color:var(--muted)">Talk about your cue card topic.</span>':esc(st.q))+"</h3>";
+  $("speakStep").innerHTML=h;
+  const lines=(st.preLines||[]).concat((!st.cue&&st.q)?[st.q]:[]);
+  lines.forEach(exLine);
+  Speaker.say(lines,()=>{autoBegin();});
+}
+async function autoBegin(){
+  const st=cur();
+  try{
+    if(!REC_STATE.stream)REC_STATE.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    beginRecording();
+  }catch(e){
+    REC_STATE.err=true;
+    $("micWarn").classList.remove("hidden");
+    $("recBtn").classList.remove("hidden");
+    $("recBtn").disabled=true;
+    $("nextStepBtn").disabled=false;
+    $("recStatus").textContent="Mic unavailable — answer aloud anyway, then press Continue.";
+  }
+}
+function beginRecording(){
+  const st=cur();
+  const mr=new MediaRecorder(REC_STATE.stream);
+  const chunks=[];
+  mr.ondataavailable=e=>chunks.push(e.data);
+  mr.onstop=()=>{
+    const dur=Math.round((Date.now()-REC_STATE.startTs)/1000);
+    const blob=new Blob(chunks,{type:mr.mimeType||"audio/webm"});
+    const url=URL.createObjectURL(blob);
+    STATE.recordings[REC_STATE.key]={url,dur,interrupted:!!REC_STATE.interrupted};
+    SP.spent[st.part]=(SP.spent[st.part]||0)+dur;
+    $("recPlayback").innerHTML='<audio controls src="'+url+'"></audio>';
+    handleStop(dur,st);
+  };
+  REC_STATE.mr=mr;REC_STATE.active=true;REC_STATE.key=st.key;
+  REC_STATE.startTs=Date.now();REC_STATE.interrupted=false;
+  mr.start();
+  $("recBtn").classList.remove("hidden");
+  $("recBtn").disabled=false;
+  $("recBtn").textContent="■ Stop my answer";
+  $("nextStepBtn").disabled=true;
+  let el=0;
+  $("recStatus").textContent="0 s";
+  REC_STATE.to=setInterval(()=>{
+    el++;
+    const cap=(SP.strict&&!st.noInterrupt)?(" · examiner cuts off at "+st.max+" s"):"";
+    $("recStatus").textContent=el+" s"+cap;
+    if(SP.strict&&!st.noInterrupt&&el>=st.max)doInterrupt();
+    else if(!SP.strict&&el>=st.max+3)finishAttempt();
+  },1000);
+  ACTIVE_TIMERS.push(REC_STATE.to);
+}
+function toggleRec(){
+  if(REC_STATE.active)finishAttempt();
+  else autoBegin();
+}
+function doInterrupt(){
+  if(REC_STATE.interrupted)return;
+  REC_STATE.interrupted=true;
+  if(REC_STATE.to){clearInterval(REC_STATE.to);REC_STATE.to=null;}
+  $("recBtn").disabled=true;
+  $("recBtn").textContent="✂ Interrupted by examiner";
+  exLine("Thank you.");
+  Speaker.say(["Thank you."],()=>{setTimeout(finishAttempt,600);});
+}
+function finishAttempt(){
+  if(REC_STATE.to){clearInterval(REC_STATE.to);REC_STATE.to=null;}
+  if(REC_STATE.mr&&REC_STATE.mr.state==="recording"){try{REC_STATE.mr.stop();}catch(e){}}
+  REC_STATE.active=false;
+}
+function handleStop(dur,st){
+  $("recBtn").classList.add("hidden");
+  const early=!REC_STATE.interrupted&&dur<(st.min||0)&&st.part!==2;
+  if(SP.strict&&early&&!SP.nudged[st.key]){
+    SP.nudged[st.key]=true;
+    youLine("("+dur+" s — quite short)");
+    const line="Could you say a little more about that?";
+    exLine(line);
+    Speaker.say([line],()=>{
+      $("recBtn").classList.remove("hidden");
+      $("recBtn").disabled=false;
+      $("recBtn").textContent="🎙 Continue answering";
+      $("recStatus").textContent="Your take was short — extend it this time.";
+    });
+    return;
+  }
+  youLine("(answered in "+dur+" s"+(REC_STATE.interrupted?" — interrupted)":")"));
+  advance();
+}
+function stopRecSilent(){
+  if(REC_STATE.active)finishAttempt();
+  REC_STATE.mr=null;
+}
+function advance(){
+  stopRecSilent();
+  if(SP.idx<SP.steps.length-1){SP.idx++;renderSpeakStep();}
+  else{clearTimers();IN_TEST=false;renderResults();}
+}
+function nextSpeakStep(){
+  const st=cur();
+  if(st.mode==="talk"&&!STATE.recordings[st.key]&&!REC_STATE.active){
+    if(!confirm("Skip this question without answering?"))return;
+  }
+  if((st.mode==="intro"||st.mode==="trans"||st.mode==="end")&&Speaker.available){
+    speechSynthesis.cancel();
+  }
+  advance();
+}
+
+/* ============================================================
+   AI SPEAKING EXAMINER — real model conversation (speech in/out)
+============================================================ */
+const SRClass=window.SpeechRecognition||window.webkitSpeechRecognition;
+let AI_S={on:false,msgs:[],stage:"",qIdx:{1:0,3:0},rec:null,silT:null,maxT:null,
+  listening:false,manualStop:false,text:"",typed:false,t0:0,recorder:null,chunks:[],curMeta:null,model:""};
+
+function examSystemPrompt(set){
+  return 'You are "Examiner Hart", a professional British IELTS speaking examiner conducting a REAL spoken test.\n'+
+  'Topic set: "'+set.name+'". Cue card topic: "'+set.cue.topic+'" with points: '+set.cue.bullets.join("; ")+'.\n'+
+  'STRICT RULES:\n'+
+  '- Output ONLY the exact words you would SAY ALOUD. No stage directions, no markdown, no lists.\n'+
+  '- Maximum 3 short sentences per turn. Natural British tone ("Right.", "Now,", "Thank you.").\n'+
+  '- After each answer in Parts 1 and 3: acknowledge in at most 5 words IF the answer was substantial (15+ words), then ask the NEXT question you are told. If the answer was under ~8 words, do NOT advance - briefly ask the student to say more.\n'+
+  '- Never repeat a question already asked. Never answer for the student. Stay in character.';
+}
+
+function startAISpeaking(){
+  CURRENT_SPEAK_SET=Math.floor(Math.random()*SPEAKING_SETS.length);
+  CUR_SET=SPEAKING_SETS[CURRENT_SPEAK_SET];
+  IN_TEST=true;STATE.current="speaking";STATE.answers={};STATE.recordings={};
+  SP.steps=[];SP.idx=0;SP._log=[];SP.spent={1:0,2:0,3:0};SP.nudged={};
+  AI_S.on=true;AI_S.qIdx={1:0,3:0};AI_S.listening=false;AI_S.typed=false;AI_S.text="";
+  AI_S.cueShown=false;AI_S.endShown=false;AI_S.busy=false;AI_S.curMeta=null;
+  $("hdrSection").textContent="SPEAKING · AI";$("hdrSection").classList.remove("hidden");
+  $("speakPanelTitle").textContent="Live AI examiner";
+  $("speakPanelSub").textContent="a real language model speaks · listens · reacts";
+  $("aiBadge").classList.remove("hidden");
+  $("classicCard").classList.add("hidden");
+  $("aiCard").classList.remove("hidden");
+  $("micWarn").classList.add("hidden");$("srWarn").classList.add("hidden");
+  $("aiTypeWrap").classList.add("hidden");
+  $("exLog").innerHTML="";$("recPlaybackAI").innerHTML="";
+  show("scr-speaking");
+  exLine("(AI examiner session started)");
+  aiIntroTurn();
+}
+function aiSetStage(label){AI_S.stage=label;$("aiStage").textContent=label;}
+async function aiIntroTurn(){
+  aiSetStage("Introduction");
+  $("aiStatus").textContent="Examiner is thinking…";
+  $("aiLastQ").innerHTML='<div class="ex-line thinking">Connecting to the AI examiner…</div>';
+  await ensureMic();
+  const h=new Date().getHours();const greet=h<12?"Good morning":(h<18?"Good afternoon":"Good evening");
+  try{
+    const res=await aiChat([
+      {role:"system",content:examSystemPrompt(CUR_SET)},
+      {role:"user",content:'[TEST START] Greet the candidate ("'+greet+'"), give your name, ask their full name and where they are from, then announce Part 1 topic "'+CUR_SET.p1topic+'" and ask Part 1 question 1: "'+CUR_SET.p1[0]+'". One natural spoken turn.'}
+    ],{temperature:0.7,maxTokens:180});
+    AI_S.model=res.model;
+    $("aiModelTag").textContent="model: "+res.model;
+    AI_S.msgs.push({role:"assistant",content:res.text});
+    exLine(res.text);
+    $("aiLastQ").innerHTML='<div class="ex-line">'+esc(res.text)+"</div>";
+    $("aiStatus").textContent="";
+    aiSpeakThenListen(res.text,{part:1,key:"p1_0",max:40,min:9,stage:"Part 1 · Question 1 of "+CUR_SET.p1.length,isIntro:true});
+  }catch(e){aiFail(e);}
+}
+function aiPeekNext(part){
+  const s=AI_S.qIdx;
+  if(part===1){
+    const i=(s[1]||0)+1;
+    if(i<CUR_SET.p1.length)return {line:CUR_SET.p1[i],stage:"Part 1 · Question "+(i+1)+" of "+CUR_SET.p1.length,key:"p1_"+i,idx:i};
+    return AI_S.cueShown?{}:{cue:true};
+  }
+  if(part===3){
+    const i=(s[3]||0)+1;
+    if(i<CUR_SET.p3.length)return {line:CUR_SET.p3[i],stage:"Part 3 · Discussion "+(i+1)+" of "+CUR_SET.p3.length,key:"p3_"+i,idx:i};
+    return {end:true};
+  }
+  return {};
+}
+async function aiAfterAnswer(userText,meta){
+  if(AI_S.busy)return;
+  AI_S.busy=true;
+  AI_S.msgs.push({role:"user",content:'[STUDENT ANSWER — '+(meta.stage||"")+'] "'+userText+'"'});
+  if(meta.part===2){
+    if(meta.longTurn){
+      $("aiStatus").textContent="Examiner is responding…";
+      try{
+        const res=await aiChat([...AI_S.msgs,{role:"user",content:'[The student just finished their two-minute long turn.] Thank them briefly and ask exactly ONE follow-up question about what they said or the cue card topic. Reply only with what you say aloud.'}],{temperature:0.7,maxTokens:140});
+        AI_S.msgs.push({role:"assistant",content:res.text});
+        exLine(res.text);
+        $("aiLastQ").innerHTML='<div class="ex-line">'+esc(res.text)+"</div>";
+        $("aiStatus").textContent="";
+        aiSpeakThenListen(res.text,{part:2,key:"p2_follow",max:25,min:3,stage:"Part 2 · Follow-up"});
+      }catch(e){aiFail(e);}
+      return;
+    }
+    await aiBeginPart3();
+    return;
+  }
+  const partKey=meta.isIntro?1:meta.part;
+  const d=aiPeekNext(partKey);
+  if(d.cue){await aiPresentCueCard();return;}
+  if(d.end){await aiEndTest();return;}
+  let directive;
+  if(meta.longTurn){
+    directive="The student just finished their two-minute long turn. Thank them briefly and ask exactly ONE follow-up question about what they said or the cue card topic.";
+  }else{
+    directive='If their answer was too short (under ~8 words), encourage a fuller answer instead of advancing. Otherwise acknowledge briefly and ask this NEXT question: "'+(d.line||"")+'"';
+  }
+  $("aiStatus").textContent="Examiner is responding…";
+  try{
+    const res=await aiChat([...AI_S.msgs,{role:"user",content:"["+directive+"] Reply only with what you say aloud."}],{temperature:0.7,maxTokens:140});
+    AI_S.msgs.push({role:"assistant",content:res.text});
+    exLine(res.text);
+    $("aiLastQ").innerHTML='<div class="ex-line">'+esc(res.text)+"</div>";
+    $("aiStatus").textContent="";
+    const nudged=!meta.longTurn&&!!d.line&&!res.text.replace(/[^a-z ]/gi,"").toLowerCase().includes(d.line.replace(/[^a-z ]/gi,"").toLowerCase());
+    let nextMeta;
+    if(nudged){
+      nextMeta={part:meta.part,key:meta.key,max:meta.max,min:meta.min,stage:meta.stage};
+    }else{
+      AI_S.qIdx[partKey]=d.idx;
+      nextMeta={part:d.cue?2:partKey,key:d.key,max:partKey===1?40:(partKey===3?70:120),min:partKey===1?9:12,stage:d.stage};
+    }
+    aiSpeakThenListen(res.text,nextMeta);
+  }catch(e){aiFail(e);}
+}
+async function aiBeginPart3(){
+  aiSetStage("Part 3 · Discussion");
+  $("aiStatus").textContent="Examiner is responding…";
+  try{
+    const res=await aiChat([...AI_S.msgs,{role:"user",content:'[The Part 2 follow-up is finished.] Transition naturally: thank the student, say you would like to discuss some more general questions, then ask this first Part 3 question: "'+CUR_SET.p3[0]+'". Reply only with what you say aloud.'}],{temperature:0.7,maxTokens:150});
+    AI_S.msgs.push({role:"assistant",content:res.text});
+    exLine(res.text);
+    $("aiLastQ").innerHTML='<div class="ex-line">'+esc(res.text)+"</div>";
+    $("aiStatus").textContent="";
+    aiSpeakThenListen(res.text,{part:3,key:"p3_0",max:70,min:12,stage:"Part 3 · Discussion 1 of "+CUR_SET.p3.length});
+  }catch(e){aiFail(e);}
+}
+async function aiPresentCueCard(){
+  AI_S.cueShown=true;
+  $("aiTypeWrap").classList.add("hidden");
+  $("aiStopBtn").classList.add("hidden");
+  $("aiSkipBtn").classList.add("hidden");
+  aiSetStage("Part 2 · Cue card");
+  $("aiLastQ").innerHTML='<div class="cuecard"><h4>'+esc(CUR_SET.cue.topic)+"</h4><ul>"+CUR_SET.cue.bullets.map(b=>"<li>"+esc(b)+"</li>").join("")+'</ul><small>Speak for 1–2 minutes.</small></div>';
+  exLine("(hands you the cue card: "+CUR_SET.cue.topic+")");
+  $("aiStatus").textContent="Examiner is speaking…";
+  try{
+    const res=await aiChat([...AI_S.msgs,{role:"user",content:'[Part 1 is finished.] Announce Part 2 naturally: tell the student to read the topic card and think for one minute (they may make notes), then read out the topic: "'+CUR_SET.cue.topic+'". Do NOT ask any question yet.'}],{temperature:0.7,maxTokens:130});
+    AI_S.msgs.push({role:"assistant",content:res.text});
+    exLine(res.text);$("aiStatus").textContent="";
+    Speaker.say([stripMd(res.text)],()=>aiPrepMinute());
+  }catch(e){aiFail(e);}
+}
+function aiPrepMinute(){
+  aiSetStage("Part 2 · Preparation (1 min)");
+  let left=60;
+  $("aiPartial").textContent="📝 Preparation time — jot notes below. Speaking starts automatically.";
+  $("aiStatus").textContent="Prep: "+fmt(left);
+  const iv=setInterval(()=>{left--;$("aiStatus").textContent="Prep: "+fmt(left);
+    if(left<=0){clearInterval(iv);aiLongTurnIntro();}},1000);
+  ACTIVE_TIMERS.push(iv);
+}
+async function aiLongTurnIntro(){
+  aiSetStage("Part 2 · Long turn (up to 2 min)");
+  try{
+    const res=await aiChat([...AI_S.msgs,{role:"user",content:"[The preparation minute is over.] Tell the student to begin speaking now; remind them it is one to two minutes. Keep it very short."}],{temperature:0.6,maxTokens:60});
+    AI_S.msgs.push({role:"assistant",content:res.text});exLine(res.text);
+    $("aiLastQ").innerHTML='<div class="ex-line">'+esc(res.text)+"</div>";
+    aiSpeakThenListen(res.text,{part:2,key:"p2_long",max:120,min:20,longTurn:true,stage:"Part 2 · Long turn"});
+  }catch(e){aiFail(e);}
+}
+async function aiEndTest(){
+  aiSetStage("End of test");
+  ["aiStopBtn","aiSkipBtn","aiNextBtn"].forEach(id=>$(id).classList.add("hidden"));
+  $("aiStatus").textContent="Examiner is closing…";
+  try{
+    const res=await aiChat([...AI_S.msgs,{role:"user",content:"[That was the final Part 3 answer.] Close the test warmly in one line, then on a NEW LINE output exactly: TEST_COMPLETE"}],{temperature:0.6,maxTokens:80});
+    AI_S.msgs.push({role:"assistant",content:res.text});
+    const clean=res.text.split("TEST_COMPLETE")[0].trim();
+    exLine(clean);
+    $("aiLastQ").innerHTML='<div class="ex-line">'+esc(clean)+"</div>";
+    Speaker.say([clean]);
+    $("aiStatus").textContent="Analysing your performance…";
+    await aiBandFeedback();
+  }catch(e){aiFail(e);}
+}
+async function aiBandFeedback(){
+  const transcript=AI_S.msgs.filter(m=>m.role!=="system")
+    .map(m=>(m.role==="assistant"?"EXAMINER: ":"STUDENT: ")+m.content).join("\n");
+  try{
+    const res=await aiChat([
+      {role:"system",content:'You are an IELTS speaking assessor. Reply ONLY with minified JSON: {"fluency":n,"lexical":n,"grammar":n,"pronunciation":n,"overall":n,"strengths":"...","toImprove":"..."} where n is a band from 4 to 9 in .5 steps. Judge only from transcript evidence; be honest - most real candidates fall between 5 and 7.'},
+      {role:"user",content:transcript.slice(-6000)}
+    ],{temperature:0.2,maxTokens:400});
+    let fb=null;
+    try{fb=JSON.parse(res.text.match(/\{[\s\S]*\}/)[0]);}catch(e){}
+    if(fb&&fb.overall){
+      RUBRIC_DATA.sf=+fb.fluency||6;RUBRIC_DATA.sl=+fb.lexical||6;RUBRIC_DATA.sg=+fb.grammar||6;RUBRIC_DATA.sp=+fb.pronunciation||6;
+      const st=v=>(+v||6).toFixed(1);
+      const fbHtml='<h3>🤖 AI feedback <span style="font-size:13px;color:var(--muted)">(model: '+esc(AI_S.model)+")</span></h3>"+
+        '<p>Estimated overall speaking band: <b style="color:var(--red);font-size:24px">'+st(fb.overall)+"</b></p>"+
+        '<div class="statgrid">'+
+        '<div class="st"><b>'+st(fb.fluency)+"</b><span>Fluency & Coherence</span></div>"+
+        '<div class="st"><b>'+st(fb.lexical)+"</b><span>Lexical Resource</span></div>"+
+        '<div class="st"><b>'+st(fb.grammar)+"</b><span>Grammar</span></div>"+
+        '<div class="st"><b>'+st(fb.pronunciation)+"</b><span>Pron*</span></div></div>"+
+        "<p style='margin-top:10px'><b>Strengths:</b> "+esc(fb.strengths||"—")+"</p>"+
+        "<p><b>To improve:</b> "+esc(fb.toImprove||"—")+"</p>"+
+        '<p style="font-size:11px;color:var(--muted)">*Pronunciation is inferred from the speech-recognition transcript only - treat that sub-score as a rough hint.</p>';
+      renderAISpeakingResults(fbHtml);
+    }else{
+      renderAISpeakingResults('<div class="warnbox">AI feedback could not be parsed - self-assess instead.</div>');
+    }
+  }catch(e){
+    renderAISpeakingResults('<div class="warnbox">AI feedback failed ('+esc(e.message)+") - self-assess instead.</div>");
+  }
+}
+function renderAISpeakingResults(extraHtml){
+  clearTimers();IN_TEST=false;AI_S.on=false;
+  stopAITurnTimers();aiStopRec();
+  let recsHtml="";
+  Object.entries(STATE.recordings).forEach(([k,r])=>{
+    if(!r)return;
+    recsHtml+='<div class="qblock review-q">🎙 '+esc(k.replace(/_/g," "))+" — "+r.dur+" s"+'<br><audio controls src="'+r.url+'"></audio></div>';
+  });
+  let logHtml="";
+  (SP._log||[]).forEach(l=>{logHtml+=l.who==="Examiner"?('<div class="log-ex">'+esc(l.t)+"</div> "):('<div class="log-you">'+esc(l.t)+"</div> ");});
+  $("resSummary").innerHTML="<h3>🎤 Speaking (AI examiner) — "+new Date().toLocaleString()+"</h3><p><b>"+Object.keys(STATE.recordings).length+"</b> answers recorded.</p>";
+  $("rubricBox").innerHTML=(recsHtml?'<h3>Your recordings</h3>'+recsHtml:"")+extraHtml+
+    (logHtml?'<details style="margin-top:10px"><summary>Full AI conversation transcript</summary><div style="line-height:1.8;margin-top:8px">'+logHtml+"</div></details>":"");
+  $("resReview").innerHTML="";
+  $("nextSectionBtn").classList.add("hidden");
+  show("scr-results");
+  PENDING_RESULT={sec:"speaking",bands:{}};
+  finaliseResult();
+}
+function stripMd(t){return t.replace(/[*_#`]+/g,"").replace(/\n{2,}/g,"\n").trim();}
+function aiSpeakThenListen(text,turnMeta){
+  $("aiStopBtn").classList.remove("hidden");$("aiStopBtn").disabled=false;$("aiStopBtn").textContent="■ I'm done";
+  $("aiSkipBtn").classList.remove("hidden");$("aiSkipBtn").textContent="Skip question →";
+  Speaker.say([stripMd(text)],()=>{
+    if(!AI_S.on)return;
+    AI_S.curMeta=turnMeta;
+    aiBeginTurn(turnMeta);
+  });
+}
+async function ensureMic(){
+  if(REC_STATE.stream)return true;
+  try{REC_STATE.stream=await navigator.mediaDevices.getUserMedia({audio:true});return true;}
+  catch(e){$("micWarn").classList.remove("hidden");return false;}
+}
+function aiBeginTurn(meta){
+  AI_S.busy=false;
+  if(AI_S.typed)$("aiTypeWrap").classList.remove("hidden");
+  AI_S.listening=true;AI_S.manualStop=false;AI_S.text="";AI_S.partialText="";AI_S.t0=Date.now();
+  $("aiPartial").textContent="🎙 listening… speak now (auto-sends after a short pause)";
+  if(REC_STATE.stream){
+    try{
+      const mr=new MediaRecorder(REC_STATE.stream);AI_S.chunks=[];
+      mr.ondataavailable=e=>AI_S.chunks.push(e.data);
+      mr.onstop=()=>{
+        if(!AI_S.chunks.length)return;
+        const blob=new Blob(AI_S.chunks,{type:mr.mimeType||"audio/webm"});
+        const url=URL.createObjectURL(blob);
+        STATE.recordings[(AI_S.curMeta&&AI_S.curMeta.key)||("ai_"+Date.now())]={url,dur:Math.round((Date.now()-AI_S.t0)/1000),interrupted:false};
+        $("recPlaybackAI").innerHTML='<audio controls src="'+url+'"></audio>';
+      };
+      mr.start();AI_S.recorder=mr;
+    }catch(e){}
+  }
+  if(!SRClass){
+    showTypeFallback("Speech recognition needs Chrome or Edge. Type your answer instead - the AI examiner still converses with you.");
+    return;
+  }
+  try{
+    const rec=new SRClass();AI_S.rec=rec;
+    rec.lang="en-GB";rec.interimResults=true;rec.continuous=true;rec.maxAlternatives=1;
+    rec.onresult=e=>{
+      let fin="",part="";
+      for(let i=0;i<e.results.length;i++){
+        const r=e.results[i];
+        if(r.isFinal)fin+=r[0].transcript+" ";else part+=r[0].transcript;
+      }
+      if(fin.trim())AI_S.text=(AI_S.text+" "+fin.trim()).trim();
+      AI_S.partialText=(AI_S.text+" "+part).trim();
+      $("aiPartial").textContent="🎙 "+(AI_S.partialText||"listening…");
+      resetSilence(meta);
+    };
+    rec.onerror=e=>{
+      if(e.error==="not-allowed"||e.error==="service-not-allowed")showTypeFallback("Microphone/speech blocked - type your answer instead.");
+      else if(e.error==="network")showTypeFallback("Speech service needs internet - type your answer instead.");
+    };
+    rec.onend=()=>{
+      if(AI_S.listening&&!AI_S.manualStop&&(Date.now()-AI_S.t0)<((meta.max||60)*1000-500)){
+        try{rec.start();}catch(err){}
+      }
+    };
+    rec.start();
+  }catch(e){showTypeFallback("Could not start speech recognition - type your answer instead.");return;}
+  resetSilence(meta);
+  AI_S.maxT=setTimeout(()=>aiFinishTurn(),(meta.max||60)*1000+1500);
+  ACTIVE_TIMERS.push(AI_S.maxT);
+}
+function resetSilence(meta){
+  if(AI_S.silT)clearTimeout(AI_S.silT);
+  AI_S.silT=setTimeout(()=>{
+    const dur=(Date.now()-AI_S.t0)/1000;
+    if((AI_S.partialText||"").trim().length>2||dur>(meta.min||5))aiFinishTurn();
+  },4200);
+  ACTIVE_TIMERS.push(AI_S.silT);
+}
+function stopAITurnTimers(){
+  if(AI_S.silT){clearTimeout(AI_S.silT);AI_S.silT=null;}
+  if(AI_S.maxT){clearTimeout(AI_S.maxT);AI_S.maxT=null;}
+}
+function aiStopRec(){
+  if(AI_S.rec){try{AI_S.rec.onend=null;AI_S.rec.stop();}catch(e){}AI_S.rec=null;}
+  if(AI_S.recorder&&AI_S.recorder.state==="recording"){try{AI_S.recorder.stop();}catch(e){}}
+}
+function showTypeFallback(msg){
+  AI_S.typed=true;AI_S.listening=false;
+  $("aiStopBtn").classList.add("hidden");
+  $("aiSkipBtn").classList.remove("hidden");
+  $("aiSkipBtn").textContent="Skip / continue without answering →";
+  $("aiTypeWrap").classList.remove("hidden");
+  $("srWarn").classList.remove("hidden");
+  $("srWarn").innerHTML=msg+" Type below and press Send — or skip.";
+  stopAITurnTimers();
+}function aiManualStop(){if(AI_S.listening)aiFinishTurn();}
+function aiFinishTurn(){
+  if(!AI_S.listening)return;
+  AI_S.listening=false;AI_S.manualStop=true;
+  stopAITurnTimers();aiStopRec();
+  const meta=AI_S.curMeta;
+  const said=(AI_S.partialText||AI_S.text||"").trim();
+  $("aiPartial").textContent="⏳ "+(said?('you said: "'+said+'" — sending to examiner…'):"no speech captured…");
+  if(said)youLine('('+Math.round((Date.now()-AI_S.t0)/1000)+" s) "+said);
+  aiAfterAnswer(said||"(no answer captured)",meta);
+}
+function aiSendTyped(){
+  const v=$("aiTypeBox").value.trim();
+  if(!v||!AI_S.on||AI_S.busy)return;
+  const meta=AI_S.curMeta||{part:1,key:"typed",stage:AI_S.stage};
+  $("aiTypeBox").value="";
+  youLine(v);
+  aiAfterAnswer(v,meta);
+}
+function aiSkipTurn(){
+  if(!AI_S.on||AI_S.busy||!AI_S.curMeta)return;
+  AI_S.listening=false;AI_S.manualStop=true;
+  stopAITurnTimers();aiStopRec();
+  youLine("(skipped)");
+  aiAfterAnswer("(the candidate skipped this question)",AI_S.curMeta);
+}
+function aiContinue(){}
+function aiFail(e){
+  AI_S.busy=false;
+  $("aiStatus").textContent="";
+  $("aiLastQ").innerHTML='<div class="warnbox">🤖 AI examiner error: '+esc(e.message)+
+    '<br>Fix: open <span class="mono">http://localhost:3000/ielts/</span> via <span class="mono">npm run dev</span>, or set your own key under ⚙ Settings → AI Examiner. '+
+    "The scripted examiner still works offline.</div>";
+}
+
+/* ============================================================
+   SCORING + RESULTS
+============================================================ */
+function scoreObjective(sec){
+  let qs=[],raw=0;
+  const collect=(list)=>list.forEach(q=>{
+    const given=STATE.answers[q.id];
+    let ok=false;
+    if(given!==undefined&&given!==null&&given!==""){
+      if(typeof q.a==="number"){ok=(given===q.a);}
+      else{(Array.isArray(q.ans)?q.ans:[q.ans]).forEach(a=>{if(norm(given)===norm(a))ok=true;});}
+    }
+    if(ok)raw++;
+    qs.push({q,given,ok});
+  });
+  if(sec==="listening")LISTENING.parts.forEach(p=>collect(p.questions));
+  if(sec==="reading")READING.passages.forEach(p=>collect(p.questions));
+  return {qs,raw,total:qs.length};
+}
+function critRow(id,label,hints){
+  let opts="";
+  for(let b=4;b<=9;b+=0.5){opts+='<option value="'+b+'"'+(b===6?" selected":"")+">"+b.toFixed(1)+"</option>";}
+  return '<div class="qblock"><b>'+label+'</b><br><select onchange="RUB_CHANGE(this,\''+id+'\')">'+opts+'</select><div style="font-size:12px;color:var(--muted);margin-top:4px">'+hints+"</div></div>";
+}
+const RUBRIC_DATA={};
+let LAST_REC_ID=null;
+function RUB_CHANGE(el,id){
+  RUBRIC_DATA[id]=parseFloat(el.value);
+  if(!LAST_REC_ID)return;
+  const hist=load("ielts_history",[]);
+  const rec=hist.find(e=>e.id===LAST_REC_ID);
+  if(rec&&rec.sections[STATE.current]&&rec.sections[STATE.current].self){
+    const vals=Object.keys(RUBRIC_DATA).length?Object.values(RUBRIC_DATA):[6,6,6,6];
+    rec.sections[STATE.current].criteria=JSON.parse(JSON.stringify(vals));
+    rec.sections[STATE.current].avg=Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10;
+    save("ielts_history",hist);
+  }
+}
+function renderResults(){
+  const box=$("resSummary");const rev=$("resReview");const rub=$("rubricBox");
+  const sec=STATE.current;
+  let bands={},summaryHtml="<h3>"+({listening:"🎧 Listening",reading:"📖 Reading",writing:"✍️ Writing",speaking:"🎤 Speaking"}[sec])+" — "+new Date().toLocaleString()+"</h3>";
+  let reviewHtml="";
+  if(sec==="listening"||sec==="reading"){
+    const res=scoreObjective(sec);
+    const band=rawToBand(res.raw,sec==="listening"?LISTEN_BANDS:READ_BANDS);
+    bands[sec]={raw:res.raw,band};
+    saveMistakes(sec,res);
+    summaryHtml+='<p>Raw score: <b>'+res.raw+" / "+res.total+'</b> &nbsp;→&nbsp; Estimated band: <span style="color:var(--red);font-weight:800;font-size:22px">'+band.toFixed(1)+"</span></p>";
+    reviewHtml="<details><summary>Review answers ("+res.total+" questions)</summary>";
+    res.qs.forEach(({q,given,ok})=>{
+      let yours="—",correctTxt;
+      if(typeof q.a==="number")correctTxt=q.options[q.a];else correctTxt=(q.ans[0]);
+      if(typeof given==="number")yours=q.options[given];else if(given)yours=esc(given);
+      reviewHtml+='<div class="qblock '+(ok?"correct":"wrong")+' review-q"><b>'+(ok?"✔":"✘")+"</b> "+esc(q.q)+
+        "<br>Your answer: "+yours+(ok?"":' &nbsp;|&nbsp; Correct: <b>'+esc(correctTxt)+"</b>")+"</div>";
+    });
+    reviewHtml+="</details>";
+  }
+  if(sec==="writing"){
+    const w1=wc(LAST_WRITING.t1),w2=wc(LAST_WRITING.t2);
+    summaryHtml+='<p>Task 1: <b>'+w1+'</b> words (min 150) &nbsp;·&nbsp; Task 2: <b>'+w2+"</b> words (min 250)</p>";
+    Object.keys(RUBRIC_DATA).forEach(k=>delete RUBRIC_DATA[k]);
+    rub.innerHTML='<h3>Self-assess your Writing (official criteria)</h3>'
+      +critRow("wt","Task Achievement / Response","T1: covered key features + overview? T2: answered ALL parts with clear position throughout?")
+      +critRow("wc","Coherence & Cohesion","Logical paragraphing? Linkers used naturally, not mechanically? Clear progression?")
+      +critRow("wl","Lexical Resource","Topic-specific vocabulary? Accurate collocations? Some less common items? Spelling?")
+      +critRow("wg","Grammatical Range & Accuracy","Mix of simple + complex sentences? Frequent error-free lines? Correct punctuation?")
+      +'<p style="font-size:12px;color:var(--muted)">Be honest — compare with band descriptors and model answers on ieltsliz.com. Your score saves automatically as you adjust.</p>';
+  }
+  if(sec==="speaking"){
+    let recsHtml="";
+    Object.entries(STATE.recordings).forEach(([k,r])=>{
+      if(!r)return;
+      recsHtml+='<div class="qblock review-q">🎙 '+esc(k.replace(/_/g," "))+" — "+r.dur+" s"+(r.interrupted?' <b style="color:var(--bad)">(interrupted by examiner)</b>':"")+"<br><audio controls src=\""+r.url+"\"></audio></div>";
+    });
+    summaryHtml+='<p><b>'+Object.keys(STATE.recordings).length+"</b> answers recorded. Listen back, then self-assess.</p>";
+    let logHtml="";
+    (SP._log||[]).forEach(l=>{
+      logHtml+=l.who==="Examiner"?('<div class="log-ex">'+esc(l.t)+"</div> "):('<div class="log-you">'+esc(l.t)+"</div> ");
+    });
+    Object.keys(RUBRIC_DATA).forEach(k=>delete RUBRIC_DATA[k]);
+    rub.innerHTML=(recsHtml?'<h3>Your recordings</h3>'+recsHtml:"")+
+      '<h3>Self-assess your Speaking (official criteria)</h3>'
+      +critRow("sf","Fluency & Coherence","Spoke at length without long pauses? Ideas connected logically?")
+      +critRow("sl","Lexical Resource","Paraphrased well? Idiomatic language? Avoided repetition?")
+      +critRow("sg","Grammatical Range & Accuracy","Variety of tenses/structures? Errors rare even at speed?")
+      +critRow("sp","Pronunciation","Clear sounds, sentence stress, intonation? Always intelligible?")
+      +(logHtml?'<details style="margin-top:10px"><summary>Full examiner transcript</summary><div style="line-height:1.8;margin-top:8px">'+logHtml+'</div></details>':"")
+      +'<p style="font-size:12px;color:var(--muted)">Tip: re-record weak answers immediately — improvement is fastest that way. Your score saves automatically as you adjust.</p>';
+  }
+  box.innerHTML=summaryHtml;
+  rev.innerHTML=reviewHtml;
+  $("nextSectionBtn").classList.add("hidden");
+  show("scr-results");
+  PENDING_RESULT={sec,bands};
+  finaliseResult();
+}
+let PENDING_RESULT=null;
+function finaliseResult(){
+  const sec=PENDING_RESULT.sec;
+  let entry=load("ielts_history",[]);
+  const rec={id:Date.now(),date:new Date().toISOString(),mode:STATE.mode,sections:{}};
+  if(sec==="listening"||sec==="reading"){
+    rec.sections[sec]={raw:PENDING_RESULT.bands[sec].raw,band:PENDING_RESULT.bands[sec].band};
+    LAST_REC_ID=null;
+  }else{
+    const keys=Object.keys(RUBRIC_DATA);
+    const vals=keys.length?Object.values(RUBRIC_DATA):[6,6,6,6];
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    rec.sections[sec]={self:true,avg:Math.round(avg*10)/10,criteria:JSON.parse(JSON.stringify(vals))};
+    LAST_REC_ID=rec.id;
+  }
+  entry.unshift(rec);
+  entry=entry.slice(0,50);
+  save("ielts_history",entry);
+}
+
+/* ============================================================
+   SPELLING LAB — audio → type, hardest-first weighting
+============================================================ */
+const SPELL_WORDS=[
+ {w:"accommodation",cat:"trap",s:"The university accommodation was fully booked by September.",h:"double c, double m"},
+ {w:"questionnaire",cat:"trap",s:"Please complete the questionnaire before you leave.",h:"double n"},
+ {w:"embarrassment",cat:"trap",s:"Losing my keys was a huge embarrassment.",h:"double r, double s"},
+ {w:"occasionally",cat:"trap",s:"We occasionally eat out at weekends.",h:"double c, double l"},
+ {w:"necessary",cat:"trap",s:"A jacket is necessary in Scotland.",h:"one c, two s"},
+ {w:"February",cat:"trap",s:"My birthday is in February.",h:"don't drop the first r"},
+ {w:"Wednesday",cat:"trap",s:"The meeting was moved to Wednesday.",h:"Wed-nes-day"},
+ {w:"receipt",cat:"trap",s:"Keep the receipt for your refund.",h:"silent p"},
+ {w:"library",cat:"trap",s:"I study at the library every evening.",h:"lib-ra-ry"},
+ {w:"definitely",cat:"trap",s:"I'll definitely call you tomorrow.",h:"-ite, not -ate"},
+ {w:"separate",cat:"trap",s:"Keep the receipts separate from the bills.",h:"there's 'a rat' inside"},
+ {w:"jewellery",cat:"trap",s:"She inherited some antique jewellery.",h:"British double l",alt:["jewelry"]},
+ {w:"maintenance",cat:"trap",s:"The pool is closed for maintenance.",h:"maintain + ence"},
+ {w:"government",cat:"trap",s:"Local government funds the museum.",h:"don't drop the first n"},
+ {w:"environment",cat:"trap",s:"Plastic waste harms the environment.",h:"n before -ment"},
+ {w:"business",cat:"trap",s:"She runs a small business online.",h:"busi-ness"},
+ {w:"committee",cat:"trap",s:"The committee meets on Mondays.",h:"double m, double t, double e"},
+ {w:"tomorrow",cat:"trap",s:"The exam starts tomorrow morning.",h:"one o, double r"},
+ {w:"believe",cat:"trap",s:"I believe that answer is correct.",h:"i before e"},
+ {w:"receive",cat:"trap",s:"You will receive a confirmation email.",h:"e before i after c"},
+ {w:"achievement",cat:"trap",s:"Winning the prize was a great achievement.",h:"i before e"},
+ {w:"restaurant",cat:"trap",s:"We booked a table at a French restaurant.",h:"ends -ant"},
+ {w:"surprise",cat:"trap",s:"They threw a surprise party for her.",h:"one r in the middle"},
+ {w:"kitchen",cat:"everyday",s:"The kettle in the kitchen is broken.",h:"t-c-h"},
+ {w:"bedroom",cat:"everyday",s:"My bedroom overlooks the garden.",h:"one word"},
+ {w:"bathroom",cat:"everyday",s:"The bathroom tap is leaking.",h:"one word"},
+ {w:"garage",cat:"everyday",s:"They converted the garage into an office.",h:"ends -age"},
+ {w:"luggage",cat:"everyday",s:"You may bring two pieces of luggage.",h:"one l, ends -age"},
+ {w:"passport",cat:"everyday",s:"Bring your passport to the interview.",h:"pass + port"},
+ {w:"appointment",cat:"everyday",s:"I have a dentist appointment at three.",h:"ap-point-ment"},
+ {w:"sandwich",cat:"everyday",s:"He packed a cheese sandwich for lunch.",h:"d-w-i-c-h"},
+ {w:"vegetable",cat:"everyday",s:"Eat five portions of fruit and vegetables daily.",h:"vege-table"},
+ {w:"chocolate",cat:"everyday",s:"Dark chocolate contains less sugar.",h:"three syllables"},
+ {w:"favourite",cat:"everyday",s:"Blue is my favourite colour.",h:"British -our",alt:["favorite"]},
+ {w:"colour",cat:"everyday",s:"What colour will you paint it?",h:"British -our",alt:["color"]},
+ {w:"neighbour",cat:"everyday",s:"Our neighbour has four dogs.",h:"-eigh-",alt:["neighbor"]},
+ {w:"centre",cat:"everyday",s:"The shopping centre opens at nine.",h:"British -re",alt:["center"]},
+ {w:"theatre",cat:"everyday",s:"We saw a play at the local theatre.",h:"British -re",alt:["theater"]},
+ {w:"travelling",cat:"everyday",s:"Travelling by train is relaxing.",h:"British double l",alt:["traveling"]},
+ {w:"cancelled",cat:"everyday",s:"The flight was cancelled because of fog.",h:"British double l",alt:["canceled"]},
+ {w:"vacuum",cat:"everyday",s:"Vacuum the living room, please.",h:"double u"},
+ {w:"rhythm",cat:"everyday",s:"Clap along with the rhythm.",h:"y is the only vowel"},
+ {w:"psychology",cat:"academic",s:"She lectures in psychology.",h:"silent p"},
+ {w:"laboratory",cat:"academic",s:"The samples were sent to the laboratory.",h:"la-bor-a-tory"},
+ {w:"experiment",cat:"academic",s:"The experiment lasted six months.",h:"ex-per-i-ment"},
+ {w:"analysis",cat:"academic",s:"The data analysis took two weeks.",h:"a-n-a-l-y-s-i-s"},
+ {w:"hypothesis",cat:"academic",s:"Our hypothesis was proved wrong.",h:"ends -sis"},
+ {w:"phenomenon",cat:"academic",s:"Auroras are a natural phenomenon.",h:"plural: phenomena"},
+ {w:"curriculum",cat:"academic",s:"Coding is now in the school curriculum.",h:"ends -ulum"},
+ {w:"bibliography",cat:"academic",s:"Add all sources to your bibliography.",h:"biblio-graphy"},
+ {w:"statistics",cat:"academic",s:"The statistics reveal a clear trend.",h:"statist-ics"},
+ {w:"society",cat:"academic",s:"Society depends on trust.",h:"so-ci-e-ty"},
+ {w:"culture",cat:"academic",s:"Food is central to Italian culture.",h:"cul-ture"},
+ {w:"industry",cat:"academic",s:"The steel industry declined sharply.",h:"indus-try"},
+ {w:"pollution",cat:"academic",s:"Air pollution causes asthma.",h:"double l"},
+ {w:"biodiversity",cat:"academic",s:"Wetlands support great biodiversity.",h:"bio-diversity"},
+ {w:"archaeology",cat:"academic",s:"He studies Roman archaeology.",h:"ae in the middle",alt:["archeology"]},
+ {w:"architecture",cat:"academic",s:"Gothic architecture features pointed arches.",h:"ch not k"},
+ {w:"philosophy",cat:"academic",s:"Greek philosophy shaped Western thought.",h:"ph not f"},
+ {w:"sociology",cat:"academic",s:"Sociology examines group behaviour.",h:"soc-io-logy"},
+ {w:"anthropology",cat:"academic",s:"She majored in anthropology.",h:"anthro-po-logy"},
+ {w:"entrepreneurship",cat:"academic",s:"The course teaches entrepreneurship.",h:"starts entre-"},
+ {w:"infrastructure",cat:"academic",s:"Roads are vital infrastructure.",h:"infra-structure"},
+ {w:"urbanisation",cat:"academic",s:"Rapid urbanisation emptied the villages.",h:"British -isation",alt:["urbanization"]},
+ {w:"methodology",cat:"academic",s:"Explain your methodology in section three.",h:"method-ology"},
+ {w:"empirical",cat:"academic",s:"There is little empirical evidence for that claim.",h:"em-pir-ical"},
+ {w:"correlation",cat:"academic",s:"The study found a strong correlation.",h:"double r"},
+ {w:"intervention",cat:"academic",s:"Early intervention prevents problems.",h:"inter-vention"},
+ {w:"rehabilitation",cat:"academic",s:"The hospital specializes in cardiac rehabilitation.",h:"re-hab-ili-tation"},
+ {w:"agriculture",cat:"academic",s:"The region depends on agriculture.",h:"a-gri-culture"},
+ {w:"economy",cat:"academic",s:"Tourism boosts the local economy.",h:"e-c-o-n-o-m-y"},
+ {w:"sustainable",cat:"academic",s:"We need sustainable energy sources.",h:"sus-tain-able"},
+ {w:"Thorndike",cat:"names",spell:true},
+ {w:"Whitcombe",cat:"names",spell:true},
+ {w:"Ashworth",cat:"names",spell:true},
+ {w:"Fairweather",cat:"names",spell:true},
+ {w:"Blackwood",cat:"names",spell:true},
+ {w:"Harrington",cat:"names",spell:true},
+ {w:"Pemberton",cat:"names",spell:true},
+ {w:"Kowalski",cat:"names",spell:true},
+ {w:"Fitzgerald",cat:"names",spell:true},
+ {w:"Sinclair",cat:"names",spell:true},
+ {w:"Worthington",cat:"names",spell:true},
+ {w:"Hargreaves",cat:"names",spell:true},
+ {w:"1984",cat:"numbers",say:"nineteen eighty-four",ans:["1984"]},
+ {w:"1968",cat:"numbers",say:"nineteen sixty-eight",ans:["1968"]},
+ {w:"2005",cat:"numbers",say:"two thousand and five",ans:["2005"]},
+ {w:"2013",cat:"numbers",say:"twenty thirteen",ans:["2013"]},
+ {w:"£12.50",cat:"numbers",say:"twelve pounds fifty",ans:["£12.50","12.50","1250"]},
+ {w:"£8.75",cat:"numbers",say:"eight pounds seventy-five",ans:["£8.75","8.75","875"]},
+ {w:"£280",cat:"numbers",say:"two hundred and eighty pounds",ans:["£280","280"]},
+ {w:"7:45",cat:"numbers",say:"quarter to eight in the morning",ans:["745","7:45","7.45"]},
+ {w:"6:30",cat:"numbers",say:"half past six",ans:["630","6:30","6.30"]},
+ {w:"07892 416 330",cat:"numbers",say:"oh seven eight nine two, four one six, double three oh",ans:["07892416330","07892416 330","07892 416330"]},
+ {w:"22 August",cat:"numbers",say:"the twenty-second of August",ans:["22 August","22august"]}
+];
+let SP_DRILL=null;
+function spellStatsAll(){return load("ielts_spell_stats",{});}
+function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function spellPick(pool,n){
+  const st=spellStatsAll();
+  const scored=pool.map(w=>{
+    const s=st[norm(w.w)]||{a:0,f:0,streak:0};
+    let score=Math.random()*0.6;
+    if(!s.a)score+=1.2;
+    score+=(s.f/(s.a||1))*2.2+(s.f>0?1.2:0)-Math.min(s.streak||0,3)*0.55;
+    return {w,score};
+  }).sort((a,b)=>b.score-a.score);
+  return scored.slice(0,n).map(x=>x.w);
+}
+function spellPool(mode){
+  if(mode==="hard"){
+    const st=spellStatsAll();
+    const seen=SPELL_WORDS.filter(w=>st[norm(w.w)]);
+    seen.sort((a,b)=>(st[norm(b.w)].f/(st[norm(b.w)].a||1))-(st[norm(a.w)].f/(st[norm(a.w)].a||1)));
+    return seen.length>=6?seen.slice(0,14):SPELL_WORDS.slice(0,14);
+  }
+  if(mode==="mixed"){
+    // Truly random: shuffle all words and return them all (spellPick will take min(10, pool.length))
+    return shuffleArr([...SPELL_WORDS]);
+  }
+  return SPELL_WORDS.filter(w=>w.cat===mode);
+}
+function startSpellDrill(mode){
+  const pool=spellPool(mode);
+  if(!pool.length){alert("No words in this category yet.");return;}
+  const words=spellPick(pool,Math.min(10,pool.length));
+  SP_DRILL={words,i:0,right:0,missed:[],mode};
+  $("spTitle").textContent="Spelling drill — "+({hard:"🔥 Your hardest",mixed:"🎲 Mixed",trap:"✍️ Double-letter traps",academic:"🎓 Academic",everyday:"🧾 Everyday",names:"🗣 Names spelled out",numbers:"🔢 Numbers & dates"}[mode]||mode);
+  show("scr-spellrun");
+  spellShow();
+}
+function curWord(){return SP_DRILL.words[SP_DRILL.i];}
+function spellPlay(slow){
+  const w=curWord();if(!w)return;
+  const keep=Speaker.rate;
+  Speaker.rate=slow?keep*0.55:keep;
+  if(w.say)Speaker.say([w.say]);
+  else if(w.spell)Speaker.say([w.w.split("").join(", ")+".",w.w+"."]);
+  else Speaker.say([w.w]);
+  setTimeout(()=>{Speaker.rate=keep;},80);
+}
+function spellShow(){
+  const w=curWord();
+  $("spProg").style.width=(SP_DRILL.i/SP_DRILL.words.length*100)+"%";
+  $("spNum").textContent=(SP_DRILL.i+1)+"/"+SP_DRILL.words.length;
+  $("spHintCount").textContent="";
+  $("spVerdict").innerHTML="";
+  $("spInput").classList.remove("hidden");
+  $("spAudioBtns").classList.remove("hidden");
+  $("spInput").value="";$("spInput").disabled=false;$("spInput").focus();
+  $("spCheckBtn").classList.add("hidden");
+  $("spNextBtn").classList.add("hidden");
+  $("spCheckBtn").classList.remove("hidden");
+  $("spBox").innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:6px">🔊 Listen, then type what you hear'+(w.spell?" (spelled letter by letter)":(w.say?" (a number / date / price)":""))+'</div><div class="sp-word" id="spReveal"></div>';
+  setTimeout(()=>spellPlay(),350);
+}
+document.addEventListener("keydown",e=>{
+  if(!$("scr-spellrun")||$("scr-spellrun").classList.contains("hidden")||e.key!=="Enter")return;
+  if(e.target&&(e.target.tagName==="BUTTON"||e.target.tagName==="TEXTAREA"))return;
+  if(e.target&&e.target.id==="spInput"){e.preventDefault();if(!$("spInput").disabled)spellCheck();return;}
+  e.preventDefault();
+  spellNext();
+});
+function spellHint(){
+  if(!SP_DRILL||$("spInput").disabled)return;
+  const w=curWord();
+  SP_DRILL.hintUsed=true;
+  const shown=w.w.split("").map((ch,i)=>(i===0||i%3===0)?ch:"_").join(" ");
+  $("spReveal").innerHTML='<span style="font-size:20px;letter-spacing:3px;color:var(--navy2)">'+esc(shown)+"</span>"+
+    (w.h?'<div style="font-size:12px;color:var(--amber);margin-top:6px">💡 '+esc(w.h)+"</div>":"");
+  $("spHintCount").textContent="hint used";
+}
+function spellCheck(){
+  if(!SP_DRILL)return;
+  const w=curWord();
+  const given=$("spInput").value.trim();
+  if(!given){$("spInput").focus();return;}
+  const accept=[w.w].concat(w.alt||[],w.ans&&w.ans.length?[w.w]:[]);
+  let ok=false;
+  (w.ans||accept).forEach(a=>{if(norm(given)===norm(a))ok=true;});
+  if(norm(given)===norm(w.w))ok=true;
+  const st=spellStatsAll();
+  const key=norm(w.w);
+  const rec=st[key]||{a:0,f:0,streak:0};
+  rec.a++;rec.streak=ok?(rec.streak||0)+1:0;if(!ok)rec.f++;
+  st[key]=rec;save("ielts_spell_stats",st);
+  $("spInput").disabled=true;
+  $("spCheckBtn").classList.add("hidden");
+  $("spNextBtn").classList.remove("hidden");$("spNextBtn").focus();
+  if(ok){
+    SP_DRILL.right++;
+    $("spVerdict").innerHTML='<div class="verdict ok">✔ Correct — '+esc(w.w)+(rec.streak>=3?" (mastered 🔥)":"")+"</div>";
+    $("spReveal").innerHTML='<span style="color:var(--ok)">'+esc(w.w)+"</span>";
+  }else{
+    SP_DRILL.missed.push(w);
+    const diff=w.w.split("").map((ch,i)=>{
+      const g=given[i];
+      return (!g||g.toLowerCase()!==ch.toLowerCase())?"<b>"+esc(ch)+"</b>":esc(ch);
+    }).join("");
+    $("spVerdict").innerHTML='<div class="verdict bad">✘ Not quite.</div>'+
+      '<div style="margin-top:6px"><span class="sp-word">'+diff+"</span>"+
+      '<div class="sp-yours" style="margin-top:4px">You typed: <b>'+esc(given)+"</b></div>"+
+      (w.h?'<div style="font-size:12px;color:var(--amber);margin-top:4px">💡 '+esc(w.h)+"</div>":"")+
+      (w.s?'<div style="font-size:13px;color:var(--muted);margin-top:4px">“'+esc(w.s)+'”</div>':"")+
+      "</div>";
+    Speaker.say([w.w]);
+  }
+}
+function spellSkip(){
+  if(!SP_DRILL)return;
+  const w=curWord();
+  const st=spellStatsAll();const key=norm(w.w);
+  const rec=st[key]||{a:0,f:0,streak:0};
+  rec.a++;rec.f++;rec.streak=0;st[key]=rec;save("ielts_spell_stats",st);
+  SP_DRILL.missed.push(w);
+  $("spInput").disabled=true;
+  $("spCheckBtn").classList.add("hidden");
+  $("spNextBtn").classList.remove("hidden");
+  $("spVerdict").innerHTML='<div class="verdict bad">Skipped — the word was <b>'+esc(w.w)+"</b></div>";
+}
+function spellNext(){
+  if(!SP_DRILL)return;
+  SP_DRILL.i++;
+  if(SP_DRILL.i<SP_DRILL.words.length){spellShow();return;}
+  $("spProg").style.width="100%";
+  const total=SP_DRILL.words.length,pct=Math.round(SP_DRILL.right/total*100);
+  let missedHtml="";
+  if(SP_DRILL.missed.length){
+    missedHtml="<h4>Words to review</h4>"+SP_DRILL.missed.map(w=>'<span class="log-ex">'+esc(w.w)+"</span>").join(" ");
+  }
+  $("spTitle").textContent="🏁 Drill complete";
+  $("spBox").innerHTML='<div class="sp-word" style="font-size:34px;color:'+(pct>=80?"var(--ok)":(pct>=50?"var(--amber)":"var(--bad)"))+'">'+SP_DRILL.right+" / "+total+"</div>"+
+    '<div style="color:var(--muted);margin-top:6px">'+pct+"% correct"+(SP_DRILL.right===total?" — perfect round! 🎉":"")+"</div>"+
+    (missedHtml?'<div style="margin-top:10px;text-align:left">'+missedHtml+"</div>":"");
+  $("spInput").classList.add("hidden");
+  $("spAudioBtns").classList.add("hidden");
+  $("spCheckBtn").classList.add("hidden");
+  $("spNextBtn").classList.add("hidden");
+  $("spVerdict").innerHTML='<div class="sp-btns">'+
+    '<button class="btn small modebtn" onclick="startSpellDrill(\''+(SP_DRILL.missed.length?"hard":SP_DRILL.mode)+'\')">🔁 Another drill</button>'+
+    '<button class="btn small ghost" onclick="renderSpellHome();show(\'scr-spell\')">Back to Spelling Lab</button></div>';
+}
+function renderSpellHome(){
+  const st=spellStatsAll();
+  let att=0,fails=0,mastered=0;
+  Object.values(st).forEach(s=>{att+=s.a;fails+=s.f;if((s.streak||0)>=3)mastered++;});
+  const acc=att?Math.round((att-fails)/att*100):0;
+  $("spellStats").innerHTML=
+    '<div class="st"><b>'+att+"</b><span>answers given</span></div>"+
+    '<div class="st"><b>'+acc+"%</b><span>accuracy</span></div>"+
+    '<div class="st"><b>'+mastered+"/"+SPELL_WORDS.length+"</b><span>words mastered</span></div>";
+  const seen=SPELL_WORDS.filter(w=>st[norm(w.w)]&&st[norm(w.w)].f>0);
+  seen.sort((a,b)=>(st[norm(b.w)].f/Math.max(1,st[norm(b.w)].a))-(st[norm(a.w)].f/Math.max(1,st[norm(a.w)].a)));
+  $("spellHardest").innerHTML=seen.length?
+    ("<details><summary>🔥 Your trouble words ("+seen.length+")</summary><div style='margin-top:8px'>"+
+      seen.slice(0,20).map(w=>'<span class="log-ex">'+esc(w.w)+" <small>("+Math.round(st[norm(w.w)].f/Math.max(1,st[norm(w.w)].a)*100)+"% wrong)</small></span>").join(" ")+"</div></details>"):"";
+}
+
+/* ============================================================
+   MISTAKE BANK
+============================================================ */
+function saveMistakes(sec,res){
+  const bank=load("ielts_mistakes",{});
+  res.qs.forEach(({q,given,ok})=>{
+    if(ok){delete bank[q.id];return;}
+    bank[q.id]={sec,q:JSON.parse(JSON.stringify(q)),given:String(given===""?"—":(typeof given==="number"?q.options[given]:given??"—")),ts:Date.now()};
+  });
+  save("ielts_mistakes",bank);
+}
+function renderMistakes(){
+  const bank=load("ielts_mistakes",{});
+  const ids=Object.keys(bank);
+  $("mistakeDrill").innerHTML="";$("mistakeDrillBtn").style.display="none";
+  if(!ids.length){
+    $("mistakeList").innerHTML="<p>🎉 Empty! Answer some Listening/Reading questions to populate your bank.</p>";
+    $("mistakeCountTile").textContent="No mistakes waiting";
+    return;
+  }
+  $("mistakeCountTile").textContent=ids.length+" question"+(ids.length===1?"":"s")+" waiting";
+  let h='<table class="bands"><tr><th>#</th><th>Paper</th><th>Question</th><th>You answered</th></tr>';
+  ids.forEach((id,i)=>{
+    const m=bank[id];
+    h+="<tr><td>"+(i+1)+"</td><td>"+esc(m.sec)+"</td><td>"+esc(m.q.q)+"</td><td style='color:var(--bad)'>"+esc(m.given)+"</td></tr>";
+  });
+  h+="</table>";
+  $("mistakeList").innerHTML=h;
+  $("mistakeDrillBtn").style.display="";
+  $("mistakeDrillBtn").textContent="🔁 Re-drill all "+ids.length+" mistakes";
+}
+let MISTAKE_DRILL=null;
+function drillMistakes(){
+  const bank=load("ielts_mistakes",{});
+  const qs=Object.keys(bank).map(id=>bank[id].q);
+  if(!qs.length)return;
+  MISTAKE_DRILL={qs,ids:Object.keys(bank)};
+  STATE.answers={};
+  let html='<div id="mistakeQs">';
+  qs.forEach((q,i)=>{html+=renderQuestion(q,(i+1));});
+  html+='</div><button class="btn" onclick="scoreMistakeDrill()">Score my re-drill</button>';
+  $("mistakeDrill").innerHTML=html;
+  bindAnswers();
+  $("mistakeDrillBtn").style.display="none";
+  $("mistakeDrill").scrollIntoView({behavior:"smooth"});
+}
+function scoreMistakeDrill(){
+  if(!MISTAKE_DRILL)return;
+  const bank=load("ielts_mistakes",{});
+  let right=0,out="";
+  MISTAKE_DRILL.qs.forEach(q=>{
+    const m=bank[q.id];if(!m)return;
+    const given=STATE.answers[q.id];
+    let ok=false;
+    if(typeof q.a==="number"){ok=given===q.a;}
+    else if(given!==undefined&&given!==null&&given!==""){
+      (Array.isArray(q.ans)?q.ans:[q.ans]).forEach(a=>{if(norm(String(given))===norm(a))ok=true;});
+    }
+    if(ok){delete bank[q.id];right++;}
+    else{
+      const correct=typeof q.a==="number"?q.options[q.a]:q.ans[0];
+      out+='<div class="qblock wrong review-q"><b>✘</b> '+esc(q.q)+"<br>Correct answer: <b>"+esc(correct)+"</b></div>";
+      m.ts=Date.now();m.given=String(typeof given==="number"?q.options[given]:(given||"—"));
+    }
+  });
+  save("ielts_mistakes",bank);
+  const total=MISTAKE_DRILL.ids.length;
+  MISTAKE_DRILL=null;
+  renderMistakes();
+  $("mistakeDrill").innerHTML='<div class="'+(right===total?"hintbox":"warnbox")+'" style="margin-bottom:10px"><b>'+right+" / "+total+"</b> fixed. "+
+    (right===total?"Bank cleared for those! 🎉":"Remaining mistakes are still in the bank.")+"</div>"+out;
+}
+
+/* ============================================================
+   BAND CALCULATOR
+============================================================ */
+let CALC_BUILT=false;
+function initCalc(){
+  if(CALC_BUILT)return;
+  CALC_BUILT=true;
+  let h="";
+  ["Listening","Reading","Writing","Speaking"].forEach(sk=>{
+    let opts='<option value="">–</option>';
+    for(let b=4;b<=9;b+=0.5){opts+='<option value="'+b+'">'+b.toFixed(1)+"</option>";}
+    h+='<div><label>'+sk+'<select id="calc_'+sk+'" style="width:100%" onchange="updateCalc()">'+opts+"</select></label></div>";
+  });
+  $("calcInputs").innerHTML=h;
+}
+function updateCalc(){
+  const vals=["Listening","Reading","Writing","Speaking"]
+    .map(k=>parseFloat($("calc_"+k).value)).filter(v=>!isNaN(v));
+  if(!vals.length){$("calcOut").textContent="–";$("calcNote").textContent="";return;}
+  const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+  $("calcOut").textContent=roundOverall(avg).toFixed(1);
+  $("calcNote").textContent="(mean "+avg.toFixed(2)+" from "+vals.length+" skills)";
+}
+
+/* ============================================================
+   HISTORY
+============================================================ */
+function renderHistory(){
+  const hist=load("ielts_history",[]);
+  const box=$("historyList");
+  if(!hist.length){box.innerHTML="<p>No attempts yet. Complete a section or full exam to start tracking!</p>";return;}
+  let h='<table class="bands"><tr><th>Date</th><th>Attempt</th><th>Scores</th></tr>';
+  hist.forEach(e=>{
+    const d=new Date(e.date);
+    let scores="";
+    if(e.sections.listening)scores+="L "+e.sections.listening.raw+"/40 ("+e.sections.listening.band.toFixed(1)+") ";
+    if(e.sections.reading)scores+="R "+e.sections.reading.raw+"/40 ("+e.sections.reading.band.toFixed(1)+") ";
+    if(e.sections.writing)scores+="W ~"+e.sections.writing.avg.toFixed(1)+" ";
+    if(e.sections.speaking)scores+="S ~"+e.sections.speaking.avg.toFixed(1)+" ";
+    h+="<tr><td>"+d.toLocaleDateString()+" "+d.toLocaleTimeString().slice(0,5)+"</td><td>"+(e.mode==="full"?"Full exam":scores.split(" ")[0]+" only")+"</td><td>"+scores+"</td></tr>";
+  });
+  h+="</table>";
+  box.innerHTML=h;
+}
+function clearHistory(){if(confirm("Delete all saved results?")){save("ielts_history",[]);renderHistory();}}
+function exportHistory(){
+  const blob=new Blob([JSON.stringify(load("ielts_history",[]),null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="ielts-progress.json";
+  a.click();
+}
+
+/* ============================================================
+   SETTINGS
+============================================================ */
+function openSettings(){
+  const s=load("ielts_settings",{});
+  if(s.rate)$("setRate").value=s.rate;
+  $("setReplay").checked=s.replay===false?false:true;
+  $("setAuto").checked=s.auto===false?false:true;
+  $("setStrict").checked=s.examiner===false?false:true;
+  const ai=load("ielts_ai",{});
+  $("setAiMode").value=ai.mode||"proxy";
+  $("setAiProvider").value=ai.provider||"groq";
+  $("setAiModel").value=ai.model||"";
+  $("setAiKey").value=ai.key||"";
+  $("directFields").classList.toggle("hidden",$("setAiMode").value!=="direct");
+  $("modal").classList.remove("hidden");
+}
+function closeSettings(){$("modal").classList.add("hidden");}
+function saveSettings(){
+  const s={rate:$("setRate").value,replay:$("setReplay").checked,auto:$("setAuto").checked,examiner:$("setStrict").checked};
+  save("ielts_settings",s);
+  save("ielts_ai",{mode:$("setAiMode").value,provider:$("setAiProvider").value,model:$("setAiModel").value.trim(),key:$("setAiKey").value.trim()});
+  Speaker.setRate(s.rate);
+  if($("setVoice").selectedIndex>=0)Speaker.setVoiceByIdx($("setVoice").selectedIndex);
+  closeSettings();
+}
+document.addEventListener("change",e=>{
+  if(e.target&&e.target.id==="setAiMode")$("directFields").classList.toggle("hidden",e.target.value!=="direct");
+});
+
+/* ============================================================
+   INIT
+============================================================ */
+window.addEventListener("DOMContentLoaded",()=>{
+  Speaker.init();
+  const s=load("ielts_settings",{});
+  if(s.rate)Speaker.setRate(s.rate);
+  window.addEventListener("beforeunload",e=>{
+    if(IN_TEST){e.preventDefault();e.returnValue="Test in progress — leave anyway?";return e.returnValue;}
+  });
+  show("scr-home");
+});
+</script>
+</body>
+</html>
