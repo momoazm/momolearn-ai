@@ -1942,7 +1942,6 @@ function spellPlay(slow){
   const keep=Speaker.rate;
   Speaker.rate=slow?keep*0.55:keep;
   if(w.say)Speaker.say([w.say]);
-  else if(w.spell)Speaker.say([w.w.split("").join(", ")+".",w.w+"."]);
   else Speaker.say([w.w]);
   setTimeout(()=>{Speaker.rate=keep;},80);
 }
@@ -1958,7 +1957,7 @@ function spellShow(){
   $("spCheckBtn").classList.add("hidden");
   $("spNextBtn").classList.add("hidden");
   $("spCheckBtn").classList.remove("hidden");
-  $("spBox").innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:6px">🔊 Listen, then type what you hear'+(w.spell?" (spelled letter by letter)":(w.say?" (a number / date / price)":""))+'</div><div class="sp-word" id="spReveal"></div>';
+  $("spBox").innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:6px">🔊 Listen, then type what you hear'+(w.say?" (a number / date / price)":"")+'</div><div class="sp-word" id="spReveal"></div>';
   setTimeout(()=>spellPlay(),350);
 }
 document.addEventListener("keydown",e=>{
