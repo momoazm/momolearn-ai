@@ -214,7 +214,7 @@
     <button class="btn ghost" onclick="startSpellDrill('trap')">✍️ Double-letter traps</button>
     <button class="btn ghost" onclick="startSpellDrill('academic')">🎓 Academic vocabulary</button>
     <button class="btn ghost" onclick="startSpellDrill('everyday')">🧾 Everyday words</button>
-    <button class="btn ghost" onclick="startSpellDrill('names')">🗣 Names spelled out (Part-1 style)</button>
+    <button class="btn ghost" onclick="startSpellDrill('names')">🗣 Names (Part-1 style)</button>
     <button class="btn ghost" onclick="startSpellDrill('numbers')">🔢 Numbers, prices & dates</button>
   </div>
   <button class="btn ghost" onclick="goHome()">← Back</button>
@@ -1932,7 +1932,7 @@ function startSpellDrill(mode){
   if(!pool.length){alert("No words in this category yet.");return;}
   const words=spellPick(pool,Math.min(10,pool.length));
   SP_DRILL={words,i:0,right:0,missed:[],mode};
-  $("spTitle").textContent="Spelling drill — "+({hard:"🔥 Your hardest",mixed:"🎲 Mixed",trap:"✍️ Double-letter traps",academic:"🎓 Academic",everyday:"🧾 Everyday",names:"🗣 Names spelled out",numbers:"🔢 Numbers & dates"}[mode]||mode);
+  $("spTitle").textContent="Spelling drill — "+({hard:"🔥 Your hardest",mixed:"🎲 Mixed",trap:"✍️ Double-letter traps",academic:"🎓 Academic",everyday:"🧾 Everyday",names:"🗣 Names (Part-1 style)",numbers:"🔢 Numbers & dates"}[mode]||mode);
   show("scr-spellrun");
   spellShow();
 }
