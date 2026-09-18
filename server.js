@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 import { classify, fullRoute, ROUTES, CATEGORIES } from './lib/router.js';
 import { registerMbzuaiRoutes } from './lib/mbzuai/routes.js';
 import { registerYear2LeaderboardRoutes } from './lib/year2/leaderboard.js';
+import { registerYear2SessionRoutes } from './lib/year2/session.js';
+import { registerYear2CloudSaveRoutes } from './lib/year2/cloudsave.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const app = express();
@@ -219,6 +221,8 @@ registerMbzuaiRoutes(app, {
 });
 
 registerYear2LeaderboardRoutes(app);
+registerYear2SessionRoutes(app);
+registerYear2CloudSaveRoutes(app);
 
 if (!process.env.VERCEL) {
   app.listen(process.env.PORT || 3000, () => {
