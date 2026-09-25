@@ -161,6 +161,55 @@ async function runTests() {
     }
   })();
 
+  // 7. year2 friends + referral codes (PLAN Phase 17)
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const stamp = Date.now().toString(36);
+  const playerA = `vdtA${stamp}`;
+  const playerB = `vdtB${stamp}`;
+
+  await test('POST /api/year2/friends/join - bad code is refused (friendly copy)', async () => {
+    const body = { playerId: playerB, name: 'Probe', code: '!!' };
+    const res = await request(BASE_URL + '/api/year2/friends/join', { method: 'POST', body });
+    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+    if (res.data.ok !== false) throw new Error('ok flag not false');
+    if (!/check the letters/i.test(res.data.error || '')) throw new Error('Missing friendly copy');
+  })();
+
+  let codeA = '';
+  await test('POST /api/year2/friends/code - mints a stable 6-char code', async () => {
+    const res = await request(BASE_URL + '/api/year2/friends/code', {
+      method: 'POST',
+      body: { playerId: playerA, name: 'Probe A' },
+    });
+    if (res.status !== 200) throw new Error(`Status ${res.status}: ${res.raw.slice(0, 200)}`);
+    codeA = res.data.code || '';
+    if (!/^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{6}$/.test(codeA)) throw new Error(`Bad code "${codeA}"`);
+  })();
+
+  // per-IP write cooldown on the endpoint is 1s — wait it out
+  await sleep(1200);
+
+  await test('POST /api/year2/friends/join - valid code links the friend', async () => {
+    const res = await request(BASE_URL + '/api/year2/friends/join', {
+      method: 'POST',
+      body: { playerId: playerB, name: 'Probe B', code: codeA },
+    });
+    if (res.status !== 200) throw new Error(`Status ${res.status}: ${res.raw.slice(0, 200)}`);
+    if (res.data.friendName !== 'Probe A') throw new Error(`friendName ${res.data.friendName}`);
+    if (res.data.firstJoin !== true) throw new Error('expected firstJoin=true for a fresh player');
+  })();
+
+  await test('GET /api/year2/friends/list - both sides see the edge (id+name only)', async () => {
+    const a = await request(BASE_URL + `/api/year2/friends/list?playerId=${playerA}`);
+    if (a.status !== 200) throw new Error(`A list status ${a.status}`);
+    const b = await request(BASE_URL + `/api/year2/friends/list?playerId=${playerB}`);
+    if (b.status !== 200) throw new Error(`B list status ${b.status}`);
+    if (!a.data.friends?.some((f) => f.id === playerB && f.name === 'Probe B')) throw new Error('A misses B');
+    if (!b.data.friends?.some((f) => f.id === playerA && f.name === 'Probe A')) throw new Error('B misses A');
+    const extra = Object.keys(a.data.friends[0] || {});
+    if (extra.sort().join(',') !== 'id,name') throw new Error(`list leaked fields: ${extra.join(',')}`);
+  })();
+
   // Summary
   console.log('\n' + '='.repeat(50));
   console.log(`Results: ${results.passed} passed, ${results.failed} failed`);

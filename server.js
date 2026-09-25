@@ -10,6 +10,7 @@ import { registerMbzuaiRoutes } from './lib/mbzuai/routes.js';
 import { registerYear2LeaderboardRoutes } from './lib/year2/leaderboard.js';
 import { registerYear2SessionRoutes } from './lib/year2/session.js';
 import { registerYear2CloudSaveRoutes } from './lib/year2/cloudsave.js';
+import { registerYear2FriendsRoutes } from './lib/year2/friends.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const app = express();
@@ -223,6 +224,7 @@ registerMbzuaiRoutes(app, {
 registerYear2LeaderboardRoutes(app);
 registerYear2SessionRoutes(app);
 registerYear2CloudSaveRoutes(app);
+registerYear2FriendsRoutes(app);
 
 if (!process.env.VERCEL) {
   app.listen(process.env.PORT || 3000, () => {
